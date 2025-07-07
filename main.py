@@ -1,14 +1,13 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from models import Base, engine, get_db, create_db_and_tables
-from routers import auth, companias, usuarios, pisos, clientes
+
+# Sin importar desde routers
+import auth, companias, usuarios, pisos, clientes
+from models import create_db_and_tables
 
 app = FastAPI()
 
-# CORS config
-origins = ["*"]  # En producción, cambia esto a ["https://app.tudominio.com"]
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -17,10 +16,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create DB tables
 create_db_and_tables()
 
-# Include routers
+# Incluir routers directamente
 app.include_router(auth.router)
 app.include_router(companias.router)
 app.include_router(usuarios.router)
