@@ -1,10 +1,11 @@
+import os
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from models import get_db, Usuario
 
-SECRET_KEY = "your-secure-secret-key"  # Replace with secure key in production
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secure-secret-key")  # Use env variable in production
 ALGORITHM = "HS256"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
