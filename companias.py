@@ -1,16 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from models import Compania, get_db
+from pydantic import BaseModel
+from models import get_db, Compania
 
 router = APIRouter(prefix="/companias", tags=["companias"])
 
-@router.post("/")
-def create_compania(nombre: str, db: Session = Depends(get_db)):
-    existing = db.query(Compania).filter(Compania.nombre == nombre).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Compañía ya existe")
-    compania = Compania(nombre=nombre)
-    db.add(compania)
+class CompaniaCreate(BaseModel):
+    nombre: str
+
+class CompaniaResponse(CompaniaCreate):
+    id: int
+
+@router.post("/", response_model=CompaniaResponse)
+def create_compania(compania: CompaniaCreate, db: Session = Depends(get_db)):
+    db_compania = Compania(**compania.dict())
+    db.add(db_compania)
     db.commit()
-    db.refresh(compania)
-    return compania
+    db.refresh(db_compania)
+    return db_compania
+
+@router.get("/", response_model=list[CompaniaResponse])
+def get_companias(db: Session = Depends(get_db)):
+    return db.query(Compania).all()
