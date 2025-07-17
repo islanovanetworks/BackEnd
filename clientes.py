@@ -1,57 +1,97 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 from models import get_db, Cliente
 from utils import get_current_user
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
 
 class ClienteCreate(BaseModel):
-    nombre: str | None
-    telefono: str | None
+    nombre: str
+    telefono: str
     zona: str
-    subzonas: str | None
+    subzonas: Optional[str]
     entrada: float
-    precio: float | None
-    tipo_vivienda: str | None
-    finalidad: str | None
+    precio: float
+    tipo_vivienda: Optional[str]
+    finalidad: Optional[str]
     habitaciones: int
-    banos: str
-    estado: str | None
-    ascensor: str | None
-    bajos: str | None
-    entreplanta: str | None
-    m2: int | None
-    altura: str | None
-    cercania_metro: str | None
-    orientacion: str | None
-    edificio_semi_nuevo: str | None
-    adaptado_movilidad: str | None
-    balcon: str | None
-    patio: str | None
-    terraza: str | None
-    garaje: str | None
-    trastero: str | None
-    interior: str | None
-    piscina: str | None
-    urbanizacion: str | None
-    vistas: str | None
-    caracteristicas_adicionales: str | None
-    banco: str | None
-    ahorro: float | None
-
-class ClienteResponse(ClienteCreate):
-    id: int
+    banos: Optional[str]
+    estado: Optional[str]
+    ascensor: Optional[str]
+    bajos: Optional[str]
+    entreplanta: Optional[str]
+    m2: int
+    altura: Optional[str]
+    cercania_metro: Optional[str]
+    orientacion: Optional[str]
+    edificio_semi_nuevo: Optional[str]
+    adaptado_movilidad: Optional[str]
+    balcon: Optional[str]
+    patio: Optional[str]
+    terraza: Optional[str]
+    garaje: Optional[str]
+    trastero: Optional[str]
+    interior: Optional[str]
+    piscina: Optional[str]
+    urbanizacion: Optional[str]
+    vistas: Optional[str]
+    caracteristicas_adicionales: Optional[str]
+    banco: Optional[str]
+    ahorro: float
     compania_id: int
 
+class ClienteResponse(BaseModel):
+    id: int
+    nombre: str
+    telefono: str
+    zona: str
+    subzonas: Optional[str]
+    entrada: float
+    precio: float
+    tipo_vivienda: Optional[str]
+    finalidad: Optional[str]
+    habitaciones: int
+    banos: Optional[str]
+    estado: Optional[str]
+    ascensor: Optional[str]
+    bajos: Optional[str]
+    entreplanta: Optional[str]
+    m2: int
+    altura: Optional[str]
+    cercania_metro: Optional[str]
+    orientacion: Optional[str]
+    edificio_semi_nuevo: Optional[str]
+    adaptado_movilidad: Optional[str]
+    balcon: Optional[str]
+    patio: Optional[str]
+    terraza: Optional[str]
+    garaje: Optional[str]
+    trastero: Optional[str]
+    interior: Optional[str]
+    piscina: Optional[str]
+    urbanizacion: Optional[str]
+    vistas: Optional[str]
+    caracteristicas_adicionales: Optional[str]
+    banco: Optional[str]
+    ahorro: float
+    compania_id: int
+
+    class Config:
+        orm_mode = True
+
 @router.post("/", response_model=ClienteResponse)
-def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    db_cliente = Cliente(**cliente.dict(), compania_id=user.compania_id)
+def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    if cliente.compania_id != current_user.compania_id:
+        raise HTTPException(status_code=403, detail="Not authorized to create cliente for this compania")
+    db_cliente = Cliente(**cliente.dict())
     db.add(db_cliente)
     db.commit()
     db.refresh(db_cliente)
     return db_cliente
 
 @router.get("/", response_model=list[ClienteResponse])
-def get_clientes(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    return db.query(Cliente).filter(Cliente.compania_id == user.compania_id).all()
+def read_clientes(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
+    return clientes
