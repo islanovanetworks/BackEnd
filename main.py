@@ -28,3 +28,7 @@ app.include_router(clientes.router)
 from routers import match
 app.include_router(match.router)
 
+import register
+app.include_router(register.router)
+
+
