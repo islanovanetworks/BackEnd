@@ -6,23 +6,33 @@ from utils import get_current_user
 router = APIRouter(prefix="/match", tags=["match"])
 
 @router.get("/")
-def obtener_matches(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    clientes = db.query(Cliente).filter(Cliente.compania_id == user.compania_id).all()
-    pisos = db.query(Piso).filter(Piso.compania_id == user.compania_id).all()
+def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    if piso_id:
+        piso = db.query(Piso).filter(Piso.id == piso_id, Piso.compania_id == user.compania_id).first()
+        if not piso:
+            raise HTTPException(status_code=404, detail="Piso no encontrado")
+        clientes = db.query(Cliente).filter(Cliente.compania_id == user.compania_id).all()
+        resultados = [
+            {"cliente_id": cliente.id, "piso_id": piso.id, "score": round(calcular_match_score(cliente, piso), 2)}
+            for cliente in clientes if calcular_match_score(cliente, piso) > 0
+        ]
+    elif cliente_id:
+        cliente = db.query(Cliente).filter(Cliente.id == cliente_id, Cliente.compania_id == user.compania_id).first()
+        if not cliente:
+            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+        pisos = db.query(Piso).filter(Piso.compania_id == user.compania_id).all()
+        resultados = [
+            {"cliente_id": cliente.id, "piso_id": piso.id, "score": round(calcular_match_score(cliente, piso), 2)}
+            for piso in pisos if calcular_match_score(cliente, piso) > 0
+        ]
+    else:
+        clientes = db.query(Cliente).filter(Cliente.compania_id == user.compania_id).all()
+        pisos = db.query(Piso).filter(Piso.compania_id == user.compania_id).all()
+        resultados = [
+            {"cliente_id": cliente.id, "piso_id": piso.id, "score": round(calcular_match_score(cliente, piso), 2)}
+            for cliente in clientes for piso in pisos if calcular_match_score(cliente, piso) > 0
+        ]
 
-    resultados = []
-
-    for cliente in clientes:
-        for piso in pisos:
-            score = calcular_match_score(cliente, piso)
-            if score > 0:  # Only include matches with positive scores
-                resultados.append({
-                    "cliente_id": cliente.id,
-                    "piso_id": piso.id,
-                    "score": round(score, 2)
-                })
-
-    # Sort by score in descending order
     resultados.sort(key=lambda x: x["score"], reverse=True)
     return resultados
 
