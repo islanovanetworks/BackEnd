@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 from models import get_db, Piso
 from utils import get_current_user
 
@@ -8,42 +9,73 @@ router = APIRouter(prefix="/pisos", tags=["pisos"])
 
 class PisoCreate(BaseModel):
     precio: float
-    tipo_vivienda: str | None
+    tipo_vivienda: Optional[str]
     habitaciones: int
-    banos: str
-    estado: str | None
-    ascensor: str | None
-    bajos: str | None
-    entreplanta: str | None
-    m2: int | None
-    altura: str | None
-    cercania_metro: str | None
-    orientacion: str | None
-    edificio_semi_nuevo: str | None
-    adaptado_movilidad: str | None
-    balcon: str | None
-    patio: str | None
-    terraza: str | None
-    garaje: str | None
-    trastero: str | None
-    interior: str | None
-    piscina: str | None
-    urbanizacion: str | None
-    vistas: str | None
-    caracteristicas_adicionales: str | None
-
-class PisoResponse(PisoCreate):
-    id: int
+    banos: Optional[str]
+    estado: Optional[str]
+    ascensor: Optional[str]
+    bajos: Optional[str]
+    entreplanta: Optional[str]
+    m2: int
+    altura: Optional[str]
+    cercania_metro: Optional[str]
+    orientacion: Optional[str]
+    edificio_semi_nuevo: Optional[str]
+    adaptado_movilidad: Optional[str]
+    balcon: Optional[str]
+    patio: Optional[str]
+    terraza: Optional[str]
+    garaje: Optional[str]
+    trastero: Optional[str]
+    interior: Optional[str]
+    piscina: Optional[str]
+    urbanizacion: Optional[str]
+    vistas: Optional[str]
+    caracteristicas_adicionales: Optional[str]
     compania_id: int
 
+class PisoResponse(BaseModel):
+    id: int
+    precio: float
+    tipo_vivienda: Optional[str]
+    habitaciones: int
+    banos: Optional[str]
+    estado: Optional[str]
+    ascensor: Optional[str]
+    bajos: Optional[str]
+    entreplanta: Optional[str]
+    m2: int
+    altura: Optional[str]
+    cercania_metro: Optional[str]
+    orientacion: Optional[str]
+    edificio_semi_nuevo: Optional[str]
+    adaptado_movilidad: Optional[str]
+    balcon: Optional[str]
+    patio: Optional[str]
+    terraza: Optional[str]
+    garaje: Optional[str]
+    trastero: Optional[str]
+    interior: Optional[str]
+    piscina: Optional[str]
+    urbanizacion: Optional[str]
+    vistas: Optional[str]
+    caracteristicas_adicionales: Optional[str]
+    compania_id: int
+
+    class Config:
+        orm_mode = True
+
 @router.post("/", response_model=PisoResponse)
-def create_piso(piso: PisoCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    db_piso = Piso(**piso.dict(), compania_id=user.compania_id)
+def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    if piso.compania_id != current_user.compania_id:
+        raise HTTPException(status_code=403, detail="Not authorized to create piso for this compania")
+    db_piso = Piso(**piso.dict())
     db.add(db_piso)
     db.commit()
     db.refresh(db_piso)
     return db_piso
 
 @router.get("/", response_model=list[PisoResponse])
-def get_pisos(db: Session = Depends(get_db), user=Depends(get_current_user)):
-    return db.query(Piso).filter(Piso.compania_id == user.compania_id).all()
+def read_pisos(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    pisos = db.query(Piso).filter(Piso.compania_id == current_user.compania_id).all()
+    return pisos
