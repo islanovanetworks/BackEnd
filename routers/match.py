@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from models import get_db, Cliente, Piso
 from utils import get_current_user
@@ -40,15 +40,15 @@ def calcular_match_score(cliente, piso):
     score = 0
     max_score = 100
 
-    # Must-have criteria (if these fail, return 0)
-    if cliente.zona != piso.zona:
+    # Must-have criteria
+    if cliente.zona and piso.zona and cliente.zona != piso.zona:
         return 0
-    capacidad = cliente.ahorro * 10  # Assuming ahorro is a percentage of price
-    if piso.precio > capacidad:
+    capacidad = (cliente.ahorro or 0) * 10  # Assuming ahorro is a percentage of price
+    if piso.precio and piso.precio > capacidad:
         return 0
-    if piso.habitaciones < cliente.habitaciones:
+    if cliente.habitaciones and piso.habitaciones and piso.habitaciones < cliente.habitaciones:
         return 0
-    if piso.banos < cliente.banos:
+    if cliente.banos and piso.banos and cliente.banos != piso.banos:
         return 0
 
     # Weighted criteria
@@ -67,45 +67,47 @@ def calcular_match_score(cliente, piso):
         "terraza": 5,
         "garaje": 5,
         "trastero": 5,
+        "interior": 3,
         "piscina": 3,
         "urbanizacion": 3,
         "vistas": 2
     }
 
-    # Match each field
-    if cliente.tipo_vivienda == piso.tipo_vivienda:
+    if cliente.tipo_vivienda and piso.tipo_vivienda and cliente.tipo_vivienda == piso.tipo_vivienda:
         score += weights["tipo_vivienda"]
-    if cliente.estado == piso.estado:
+    if cliente.estado and piso.estado and cliente.estado == piso.estado:
         score += weights["estado"]
-    if cliente.ascensor == piso.ascensor:
+    if cliente.ascensor and piso.ascensor and cliente.ascensor == piso.ascensor:
         score += weights["ascensor"]
-    if abs(cliente.m2 - piso.m2) <= 10:  # Within 10m²
+    if cliente.m2 and piso.m2 and abs(cliente.m2 - piso.m2) <= 10:
         score += weights["m2"]
-    if cliente.altura == piso.altura:
+    if cliente.altura and piso.altura and cliente.altura == piso.altura:
         score += weights["altura"]
-    if cliente.cercania_metro == piso.cercania_metro:
+    if cliente.cercania_metro and piso.cercania_metro and cliente.cercania_metro == piso.cercania_metro:
         score += weights["cercania_metro"]
-    if cliente.orientacion == piso.orientacion:
+    if cliente.orientacion and piso.orientacion and cliente.orientacion == piso.orientacion:
         score += weights["orientacion"]
-    if cliente.edificio_semi_nuevo == piso.edificio_semi_nuevo:
+    if cliente.edificio_semi_nuevo and piso.edificio_semi_nuevo and cliente.edificio_semi_nuevo == piso.edificio_semi_nuevo:
         score += weights["edificio_semi_nuevo"]
-    if cliente.adaptado_movilidad == piso.adaptado_movilidad:
+    if cliente.adaptado_movilidad and piso.adaptado_movilidad and cliente.adaptado_movilidad == piso.adaptado_movilidad:
         score += weights["adaptado_movilidad"]
-    if cliente.balcon == piso.balcon:
+    if cliente.balcon and piso.balcon and cliente.balcon == piso.balcon:
         score += weights["balcon"]
-    if cliente.patio == piso.patio:
+    if cliente.patio and piso.patio and cliente.patio == piso.patio:
         score += weights["patio"]
-    if cliente.terraza == piso.terraza:
+    if cliente.terraza and piso.terraza and cliente.terraza == piso.terraza:
         score += weights["terraza"]
-    if cliente.garaje == piso.garaje:
+    if cliente.garaje and piso.garaje and cliente.garaje == piso.garaje:
         score += weights["garaje"]
-    if cliente.trastero == piso.trastero:
+    if cliente.trastero and piso.trastero and cliente.trastero == piso.trastero:
         score += weights["trastero"]
-    if cliente.piscina == piso.piscina:
+    if cliente.interior and piso.interior and cliente.interior == piso.interior:
+        score += weights["interior"]
+    if cliente.piscina and piso.piscina and cliente.piscina == piso.piscina:
         score += weights["piscina"]
-    if cliente.urbanizacion == piso.urbanizacion:
+    if cliente.urbanizacion and piso.urbanizacion and cliente.urbanizacion == piso.urbanizacion:
         score += weights["urbanizacion"]
-    if cliente.vistas == piso.vistas:
+    if cliente.vistas and piso.vistas and cliente.vistas == piso.vistas:
         score += weights["vistas"]
 
     return (score / max_score) * 100
