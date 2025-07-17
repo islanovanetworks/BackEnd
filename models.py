@@ -1,9 +1,10 @@
+import os
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
-# Replace with your Render PostgreSQL connection string
-SQLALCHEMY_DATABASE_URL = "postgresql://user:password@host:port/dbname"
+# Use environment variable for database URL
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/dbname")
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
