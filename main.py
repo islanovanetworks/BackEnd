@@ -24,3 +24,7 @@ app.include_router(companias.router)
 app.include_router(usuarios.router)
 app.include_router(pisos.router)
 app.include_router(clientes.router)
+
+from routers import match
+app.include_router(match.router)
+
