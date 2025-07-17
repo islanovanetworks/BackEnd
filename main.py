@@ -1,13 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# Sin importar desde routers
-import auth, companias, usuarios, pisos, clientes
+import auth, companias, usuarios, pisos, clientes, register
+from routers import match
 from models import create_db_and_tables
 
 app = FastAPI()
 
-origins = ["*"]
+origins = ["https://front-end-ygjn.vercel.app/"]  # Update to your Vercel domain, e.g., ["https://your-app.vercel.app"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -18,17 +17,10 @@ app.add_middleware(
 
 create_db_and_tables()
 
-# Incluir routers directamente
 app.include_router(auth.router)
 app.include_router(companias.router)
 app.include_router(usuarios.router)
 app.include_router(pisos.router)
 app.include_router(clientes.router)
-
-from routers import match
 app.include_router(match.router)
-
-import register
 app.include_router(register.router)
-
-
