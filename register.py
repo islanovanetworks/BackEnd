@@ -1,27 +1,33 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from models import get_db, Usuario, Compania
-from passlib.context import CryptContext
 
-router = APIRouter(prefix="/auth", tags=["auth"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+router = APIRouter(prefix="/register", tags=["register"])
 
-@router.post("/register")
-def register(email: str, password: str, nombre_compania: str, db: Session = Depends(get_db)):
-    # 1. Comprobar si la compañía ya existe
-    if db.query(Compania).filter(Compania.nombre == nombre_compania).first():
-        raise HTTPException(status_code=400, detail="Compañía ya registrada")
+class UsuarioCreate(BaseModel):
+    email: str
+    password: str
+    compania_id: int
 
-    # 2. Crear compañía
-    nueva_compania = Compania(nombre=nombre_compania)
-    db.add(nueva_compania)
+class UsuarioResponse(BaseModel):
+    id: int
+    email: str
+    compania_id: int
+
+@router.post("/", response_model=UsuarioResponse)
+def create_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+    # Check if company exists
+    compania = db.query(Compania).filter(Compania.id == usuario.compania_id).first()
+    if not compania:
+        raise HTTPException(status_code=404, detail="Compañía no encontrada")
+    # Check if email is already registered
+    existing_user = db.query(Usuario).filter(Usuario.email == usuario.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email ya registrado")
+    # Create user (password should be hashed in production)
+    db_usuario = Usuario(email=usuario.email, password=usuario.password, compania_id=usuario.compania_id)
+    db.add(db_usuario)
     db.commit()
-    db.refresh(nueva_compania)
-
-    # 3. Crear usuario vinculado
-    hashed_pw = pwd_context.hash(password)
-    nuevo_usuario = Usuario(email=email, hashed_password=hashed_pw, compania_id=nueva_compania.id)
-    db.add(nuevo_usuario)
-    db.commit()
-
-    return {"msg": "Registrado correctamente"}
+    db.refresh(db_usuario)
+    return db_usuario
