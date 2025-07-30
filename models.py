@@ -3,7 +3,6 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
-# Use environment variable for database URL
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/dbname")
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -31,14 +30,14 @@ class Cliente(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String)
     telefono = Column(String)
-    zona = Column(String)  # Comma-separated list (e.g., "ALTO,OLIVOS")
-    subzonas = Column(String, nullable=True)  # Placeholder for future subzone logic
-    entrada = Column(Float)  # €10,000 increments from €10,000 to €500,000
-    precio = Column(Float)  # €10,000 increments to €200,000, then €20,000
-    tipo_vivienda = Column(String, nullable=True)  # Comma-separated (e.g., "Piso,Casa")
+    zona = Column(String)  # Comma-separated (e.g., "ALTO,OLIVOS")
+    subzonas = Column(String, nullable=True)
+    entrada = Column(Float)
+    precio = Column(Float)
+    tipo_vivienda = Column(String, nullable=True)  # Comma-separated
     finalidad = Column(String, nullable=True)  # Comma-separated
-    habitaciones = Column(String, nullable=True)  # Comma-separated (e.g., "1,2")
-    banos = Column(String, nullable=True)  # Comma-separated (e.g., "1,1+1")
+    habitaciones = Column(String, nullable=True)  # Comma-separated (0-5)
+    banos = Column(String, nullable=True)  # Comma-separated ("1", "1+1", "2")
     estado = Column(String, nullable=True)  # Entrar a Vivir, Actualizar, A Reformar
     ascensor = Column(String, nullable=True)  # SÍ, HASTA 1º, ..., HASTA 5º
     bajos = Column(String, nullable=True)
@@ -67,7 +66,7 @@ class Cliente(Base):
 class Piso(Base):
     __tablename__ = "pisos"
     id = Column(Integer, primary_key=True, index=True)
-    zona = Column(String)  # Comma-separated list (e.g., "ALTO,OLIVOS")
+    zona = Column(String)  # Comma-separated (e.g., "ALTO,OLIVOS")
     precio = Column(Float)
     tipo_vivienda = Column(String, nullable=True)
     habitaciones = Column(String, nullable=True)
