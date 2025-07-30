@@ -8,19 +8,19 @@ from utils import get_current_user
 router = APIRouter(prefix="/pisos", tags=["pisos"])
 
 class PisoCreate(BaseModel):
-    zona: List[str]  # Multiple zones: ALTO, OLIVOS, etc.
+    zona: List[str]  # ALTO, OLIVOS, LAGUNA, BATÁN, SEPÚLVEDA, MANZANARES, PÍO, PUERTA, JESUITAS
     precio: float
-    tipo_vivienda: Optional[List[str]] = None
-    habitaciones: Optional[List[int]] = None
-    banos: Optional[List[str]] = None
-    estado: Optional[str] = None
-    ascensor: Optional[str] = None
+    tipo_vivienda: Optional[List[str]] = None  # Piso, Casa, Chalet, Adosado, Dúplex, Ático, Estudio
+    habitaciones: Optional[List[int]] = None  # 0 to 5
+    banos: Optional[List[str]] = None  # 1, 1+1, 2
+    estado: Optional[str] = None  # Entrar a Vivir, Actualizar, A Reformar
+    ascensor: Optional[str] = None  # SÍ, HASTA 1º, HASTA 2º, HASTA 3º, HASTA 4º, HASTA 5º
     bajos: Optional[str] = None
     entreplanta: Optional[str] = None
-    m2: int
+    m2: int  # 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 150
     altura: Optional[str] = None
     cercania_metro: Optional[str] = None
-    orientacion: Optional[List[str]] = None
+    orientacion: Optional[List[str]] = None  # Norte, Sur, Este, Oeste, Indiferente
     edificio_semi_nuevo: Optional[str] = None
     adaptado_movilidad: Optional[str] = None
     balcon: Optional[str] = None
