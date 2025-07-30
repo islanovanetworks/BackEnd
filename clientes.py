@@ -10,22 +10,22 @@ router = APIRouter(prefix="/clientes", tags=["clientes"])
 class ClienteCreate(BaseModel):
     nombre: str
     telefono: str
-    zona: List[str]  # Multiple zones: ALTO, OLIVOS, etc.
+    zona: List[str]  # ALTO, OLIVOS, LAGUNA, BATÁN, SEPÚLVEDA, MANZANARES, PÍO, PUERTA, JESUITAS
     subzonas: Optional[str] = None
-    entrada: float  # €10,000 increments from €10,000 to €500,000
-    precio: float  # €10,000 increments to €200,000, then €20,000
-    tipo_vivienda: Optional[List[str]] = None  # Multiple selections
-    finalidad: Optional[List[str]] = None  # Multiple selections
-    habitaciones: Optional[List[int]] = None  # Multiple selections: 0 to 5
-    banos: Optional[List[str]] = None  # Multiple selections: 1, 1+1, 2
+    entrada: float  # €10,000 to €500,000 in €10,000 increments
+    precio: float  # €10,000 to €200,000 in €10,000, then €20,000
+    tipo_vivienda: Optional[List[str]] = None  # Piso, Casa, Chalet, Adosado, Dúplex, Ático, Estudio
+    finalidad: Optional[List[str]] = None  # Primera Vivienda, Inversión
+    habitaciones: Optional[List[int]] = None  # 0 to 5
+    banos: Optional[List[str]] = None  # 1, 1+1, 2
     estado: Optional[str] = None  # Entrar a Vivir, Actualizar, A Reformar
-    ascensor: Optional[str] = None  # SÍ, HASTA 1º, ..., HASTA 5º
+    ascensor: Optional[str] = None  # SÍ, HASTA 1º, HASTA 2º, HASTA 3º, HASTA 4º, HASTA 5º
     bajos: Optional[str] = None
     entreplanta: Optional[str] = None
-    m2: int  # 30, 40, ..., 150
+    m2: int  # 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 150
     altura: Optional[str] = None
     cercania_metro: Optional[str] = None
-    orientacion: Optional[List[str]] = None  # Multiple selections
+    orientacion: Optional[List[str]] = None  # Norte, Sur, Este, Oeste, Indiferente
     edificio_semi_nuevo: Optional[str] = None
     adaptado_movilidad: Optional[str] = None
     balcon: Optional[str] = None
