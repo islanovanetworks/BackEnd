@@ -1,113 +1,96 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from models import get_db, Cliente, Piso
 from utils import get_current_user
 
 router = APIRouter(prefix="/match", tags=["match"])
 
-@router.get("/")
+class MatchResponse(BaseModel):
+    cliente_id: int
+    piso_id: int
+    score: float  # Always 100% for exact matches
+
+def get_price_range(precio: float) -> tuple:
+    """Calculate the price range for matching."""
+    if precio <= 200000:
+        return precio, precio + 9999  # €10,000 increments up to €200,000
+    else:
+        increment = 20000
+        upper = ((precio // increment) + 1) * increment - 1
+        return precio, upper
+
+def get_m2_range(m2: int) -> tuple:
+    """Calculate the m2 range for matching."""
+    valid_m2 = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 150]
+    if m2 not in valid_m2:
+        return m2, 150  # Default to max if invalid
+    return m2, 150
+
+@router.get("/", response_model=list[MatchResponse])
 def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    if piso_id and cliente_id:
+        raise HTTPException(status_code=400, detail="Provide either piso_id or cliente_id, not both")
+    if not (piso_id or cliente_id):
+        raise HTTPException(status_code=400, detail="Provide either piso_id or cliente_id")
+
+    matches = []
+    
     if piso_id:
         piso = db.query(Piso).filter(Piso.id == piso_id, Piso.compania_id == user.compania_id).first()
         if not piso:
             raise HTTPException(status_code=404, detail="Piso no encontrado")
         clientes = db.query(Cliente).filter(Cliente.compania_id == user.compania_id).all()
-        resultados = [
-            {"cliente_id": cliente.id, "piso_id": piso.id, "score": round(calcular_match_score(cliente, piso), 2)}
-            for cliente in clientes if calcular_match_score(cliente, piso) > 0
-        ]
+        for cliente in clientes:
+            if is_exact_match_piso_to_cliente(piso, cliente):
+                matches.append(MatchResponse(cliente_id=cliente.id, piso_id=piso.id, score=100.0))
+    
     elif cliente_id:
         cliente = db.query(Cliente).filter(Cliente.id == cliente_id, Cliente.compania_id == user.compania_id).first()
         if not cliente:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         pisos = db.query(Piso).filter(Piso.compania_id == user.compania_id).all()
-        resultados = [
-            {"cliente_id": cliente.id, "piso_id": piso.id, "score": round(calcular_match_score(cliente, piso), 2)}
-            for piso in pisos if calcular_match_score(cliente, piso) > 0
-        ]
-    else:
-        clientes = db.query(Cliente).filter(Cliente.compania_id == user.compania_id).all()
-        pisos = db.query(Piso).filter(Piso.compania_id == user.compania_id).all()
-        resultados = [
-            {"cliente_id": cliente.id, "piso_id": piso.id, "score": round(calcular_match_score(cliente, piso), 2)}
-            for cliente in clientes for piso in pisos if calcular_match_score(cliente, piso) > 0
-        ]
+        for piso in pisos:
+            if is_exact_match_piso_to_cliente(piso, cliente):
+                matches.append(MatchResponse(cliente_id=cliente.id, piso_id=piso.id, score=100.0))
+    
+    return matches
 
-    resultados.sort(key=lambda x: x["score"], reverse=True)
-    return resultados
-
-def calcular_match_score(cliente, piso):
-    score = 0
-    max_score = 100
-
-    # Must-have criteria
-    if cliente.zona and piso.zona and cliente.zona != piso.zona:
-        return 0
-    capacidad = (cliente.ahorro or 0) * 10  # Assuming ahorro is a percentage of price
-    if piso.precio and piso.precio > capacidad:
-        return 0
-    if cliente.habitaciones and piso.habitaciones and piso.habitaciones < cliente.habitaciones:
-        return 0
-    if cliente.banos and piso.banos and cliente.banos != piso.banos:
-        return 0
-
-    # Weighted criteria
-    weights = {
-        "tipo_vivienda": 15,
-        "estado": 10,
-        "ascensor": 8,
-        "m2": 10,
-        "altura": 7,
-        "cercania_metro": 7,
-        "orientacion": 5,
-        "edificio_semi_nuevo": 5,
-        "adaptado_movilidad": 5,
-        "balcon": 5,
-        "patio": 5,
-        "terraza": 5,
-        "garaje": 5,
-        "trastero": 5,
-        "interior": 3,
-        "piscina": 3,
-        "urbanizacion": 3,
-        "vistas": 2
-    }
-
-    if cliente.tipo_vivienda and piso.tipo_vivienda and cliente.tipo_vivienda == piso.tipo_vivienda:
-        score += weights["tipo_vivienda"]
-    if cliente.estado and piso.estado and cliente.estado == piso.estado:
-        score += weights["estado"]
-    if cliente.ascensor and piso.ascensor and cliente.ascensor == piso.ascensor:
-        score += weights["ascensor"]
-    if cliente.m2 and piso.m2 and abs(cliente.m2 - piso.m2) <= 10:
-        score += weights["m2"]
-    if cliente.altura and piso.altura and cliente.altura == piso.altura:
-        score += weights["altura"]
-    if cliente.cercania_metro and piso.cercania_metro and cliente.cercania_metro == piso.cercania_metro:
-        score += weights["cercania_metro"]
-    if cliente.orientacion and piso.orientacion and cliente.orientacion == piso.orientacion:
-        score += weights["orientacion"]
-    if cliente.edificio_semi_nuevo and piso.edificio_semi_nuevo and cliente.edificio_semi_nuevo == piso.edificio_semi_nuevo:
-        score += weights["edificio_semi_nuevo"]
-    if cliente.adaptado_movilidad and piso.adaptado_movilidad and cliente.adaptado_movilidad == piso.adaptado_movilidad:
-        score += weights["adaptado_movilidad"]
-    if cliente.balcon and piso.balcon and cliente.balcon == piso.balcon:
-        score += weights["balcon"]
-    if cliente.patio and piso.patio and cliente.patio == piso.patio:
-        score += weights["patio"]
-    if cliente.terraza and piso.terraza and cliente.terraza == piso.terraza:
-        score += weights["terraza"]
-    if cliente.garaje and piso.garaje and cliente.garaje == piso.garaje:
-        score += weights["garaje"]
-    if cliente.trastero and piso.trastero and cliente.trastero == piso.trastero:
-        score += weights["trastero"]
-    if cliente.interior and piso.interior and cliente.interior == piso.interior:
-        score += weights["interior"]
-    if cliente.piscina and piso.piscina and cliente.piscina == piso.piscina:
-        score += weights["piscina"]
-    if cliente.urbanizacion and piso.urbanizacion and cliente.urbanizacion == piso.urbanizacion:
-        score += weights["urbanizacion"]
-    if cliente.vistas and piso.vistas and cliente.vistas == piso.vistas:
-        score += weights["vistas"]
-
-    return (score / max_score) * 100
+def is_exact_match_piso_to_cliente(piso: Piso, cliente: Cliente) -> bool:
+    """Check if a piso exactly matches a cliente's criteria."""
+    # Zona: At least one zone must match
+    cliente_zonas = set(cliente.zona.split(",") if cliente.zona else [])
+    piso_zonas = set(piso.zona.split(",") if piso.zona else [])
+    if not cliente_zonas.intersection(piso_zonas):
+        return False
+    
+    # Precio: Piso price must be within client's range
+    cliente_precio_min, cliente_precio_max = get_price_range(cliente.precio)
+    if not (cliente_precio_min <= piso.precio <= cliente_precio_max):
+        return False
+    
+    # Metros Cuadrados: Piso m2 must be within client's range
+    cliente_m2_min, cliente_m2_max = get_m2_range(cliente.m2)
+    if not (cliente_m2_min <= piso.m2 <= cliente_m2_max):
+        return False
+    
+    # Exact matches for multi-select fields
+    for field in ["tipo_vivienda", "finalidad", "habitaciones", "banos", "orientacion"]:
+        cliente_values = set(cliente.__dict__[field].split(",") if cliente.__dict__[field] else [])
+        piso_values = set(piso.__dict__[field].split(",") if piso.__dict__[field] else [])
+        if cliente_values and not cliente_values.issubset(piso_values):
+            return False
+    
+    # Exact matches for single-select fields
+    for field in [
+        "estado", "ascensor", "bajos", "entreplanta", "altura", "cercania_metro",
+        "edificio_semi_nuevo", "adaptado_movilidad", "balcon", "patio", "terraza",
+        "garaje", "trastero", "interior", "piscina", "urbanizacion", "vistas",
+        "caracteristicas_adicionales", "permuta"
+    ]:
+        cliente_value = cliente.__dict__[field]
+        piso_value = piso.__dict__[field]
+        if cliente_value and cliente_value != piso_value:
+            return False
+    
+    return True
