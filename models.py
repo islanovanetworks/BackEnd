@@ -38,7 +38,7 @@ class Cliente(Base):
     finalidad = Column(String, nullable=True)  # Comma-separated
     habitaciones = Column(String, nullable=True)  # Comma-separated (0-5)
     banos = Column(String, nullable=True)  # Comma-separated ("1", "1+1", "2")
-    estado = Column(String, nullable=True)  # Entrar a Vivir, Actualizar, A Reformar
+    estado = Column(String, nullable=True)  # Comma-separated: Entrar a Vivir, Actualizar, A Reformar
     ascensor = Column(String, nullable=True)  # SÍ, HASTA 1º, ..., HASTA 5º
     bajos = Column(String, nullable=True)
     entreplanta = Column(String, nullable=True)
@@ -58,15 +58,15 @@ class Cliente(Base):
     urbanizacion = Column(String, nullable=True)
     vistas = Column(String, nullable=True)
     caracteristicas_adicionales = Column(String, nullable=True)
-    banco = Column(String, nullable=True)
-    permuta = Column(String, nullable=True)  # SÍ, NO
+    banco = Column(String, nullable=True)  # ✅ AGREGADO
+    permuta = Column(String, nullable=True)  # ✅ AGREGADO: SÍ, NO
     compania_id = Column(Integer, ForeignKey("companias.id"))
     compania = relationship("Compania", back_populates="clientes")
 
 class Piso(Base):
     __tablename__ = "pisos"
     id = Column(Integer, primary_key=True, index=True)
-    zona = Column(String)  # Comma-separated (e.g., "ALTO,OLIVOS")
+    zona = Column(String)  # ✅ AGREGADO: Comma-separated (e.g., "ALTO,OLIVOS")
     precio = Column(Float)
     tipo_vivienda = Column(String, nullable=True)
     habitaciones = Column(String, nullable=True)
@@ -95,7 +95,11 @@ class Piso(Base):
     compania = relationship("Compania", back_populates="pisos")
 
 def create_db_and_tables():
-    Base.metadata.create_all(bind=engine)
+    # ✅ FORZAR RECREACIÓN DE TABLAS
+    print("🔄 Recreating database tables...")
+    Base.metadata.drop_all(bind=engine)  # Eliminar tablas existentes
+    Base.metadata.create_all(bind=engine)  # Recrear todas las tablas
+    print("✅ Database tables recreated successfully!")
 
 def get_db():
     db = SessionLocal()
