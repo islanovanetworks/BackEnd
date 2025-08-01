@@ -18,7 +18,7 @@ class ClienteCreate(BaseModel):
     finalidad: Optional[List[str]] = None  # Primera Vivienda, Inversión
     habitaciones: Optional[List[int]] = None  # 0 to 5
     banos: Optional[List[str]] = None  # 1, 1+1, 2
-    estado: Optional[str] = None  # Entrar a Vivir, Actualizar, A Reformar
+    estado: Optional[List[str]] = None  # ✅ CAMBIADO: Entrar a Vivir, Actualizar, A Reformar - AHORA ACEPTA MÚLTIPLES
     ascensor: Optional[str] = None  # SÍ, HASTA 1º, HASTA 2º, HASTA 3º, HASTA 4º, HASTA 5º
     bajos: Optional[str] = None
     entreplanta: Optional[str] = None
@@ -54,7 +54,7 @@ class ClienteResponse(BaseModel):
     finalidad: Optional[str]
     habitaciones: Optional[str]
     banos: Optional[str]
-    estado: Optional[str]
+    estado: Optional[str]  # Se almacena como string separado por comas
     ascensor: Optional[str]
     bajos: Optional[str]
     entreplanta: Optional[str]
@@ -96,7 +96,7 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
         finalidad=",".join(cliente.finalidad) if cliente.finalidad else None,
         habitaciones=",".join(map(str, cliente.habitaciones)) if cliente.habitaciones else None,
         banos=",".join(cliente.banos) if cliente.banos else None,
-        estado=cliente.estado,
+        estado=",".join(cliente.estado) if cliente.estado else None,  # ✅ CAMBIADO: Ahora maneja arrays
         ascensor=cliente.ascensor,
         bajos=cliente.bajos,
         entreplanta=cliente.entreplanta,
