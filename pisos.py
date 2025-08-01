@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from models import get_db, Piso
 from utils import get_current_user
@@ -36,6 +36,8 @@ class PisoCreate(BaseModel):
     compania_id: int
 
 class PisoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)  # ✅ NEW Pydantic v2 syntax
+    
     id: int
     zona: str
     precio: float
@@ -64,15 +66,12 @@ class PisoResponse(BaseModel):
     caracteristicas_adicionales: Optional[str]
     compania_id: int
 
-    class Config:
-        orm_mode = True
-
 @router.post("/", response_model=PisoResponse)
 def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     if piso.compania_id != current_user.compania_id:
         raise HTTPException(status_code=403, detail="Not authorized to create piso for this compania")
     db_piso = Piso(
-        zona=",".join(piso.zona),
+        zona=",".join(piso.zona),  # ✅ FIXED: Handle array properly
         precio=piso.precio,
         tipo_vivienda=",".join(piso.tipo_vivienda) if piso.tipo_vivienda else None,
         habitaciones=",".join(map(str, piso.habitaciones)) if piso.habitaciones else None,
