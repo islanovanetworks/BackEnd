@@ -25,12 +25,25 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,                # ✅ Specific origins instead of "*"
-    allow_credentials=True,               # ✅ Now works with specific origins
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
-    expose_headers=["*"]                  # ✅ Better browser compatibility
+    expose_headers=["*"]
 )
+
+# ✅ Add error handling middleware
+@app.middleware("http")
+async def catch_exceptions_middleware(request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        import logging
+        logging.error(f"Unhandled exception: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Internal server error: {str(e)}"}
+        )
 
 # ❌ REMOVED CustomCORSMiddleware - it was conflicting with CORSMiddleware
 # ✅ Standard CORSMiddleware is sufficient and more reliable
