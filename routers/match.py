@@ -58,46 +58,71 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
 
 def is_exact_match_piso_to_cliente(piso: Piso, cliente: Cliente) -> bool:
     """Check if a piso exactly matches a cliente's criteria."""
-    # Zona: At least one zone must match
-    cliente_zonas = set(cliente.zona.split(",") if cliente.zona else [])
-    piso_zonas = set(piso.zona.split(",") if piso.zona else [])
-    if not cliente_zonas.intersection(piso_zonas):
-        return False
-    
-    # Precio: Piso price must be within client's range
-    cliente_precio_min, cliente_precio_max = get_price_range(cliente.precio)
-    if not (cliente_precio_min <= piso.precio <= cliente_precio_max):
-        return False
-    
-    # Metros Cuadrados: Piso m2 must be within client's range
-    cliente_m2_min, cliente_m2_max = get_m2_range(cliente.m2)
-    if not (cliente_m2_min <= piso.m2 <= cliente_m2_max):
-        return False
-    
-    # Exact matches for multi-select fields
-    # Exact matches for multi-select fields (excluding orientacion which is now optional)
-    for field in ["tipo_vivienda", "finalidad", "habitaciones", "banos"]:
-        cliente_values = set(cliente.__dict__[field].split(",") if cliente.__dict__[field] else [])
-        piso_values = set(piso.__dict__[field].split(",") if piso.__dict__[field] else [])
-        if cliente_values and not cliente_values.issubset(piso_values):
+    try:
+        # Zona: At least one zone must match
+        cliente_zonas = set(cliente.zona.split(",") if cliente.zona else [])
+        piso_zonas = set(piso.zona.split(",") if piso.zona else [])
+        if not cliente_zonas.intersection(piso_zonas):
             return False
-    
-    # Orientación: Optional matching - only check if both have values
-    cliente_orientacion = set(cliente.orientacion.split(",") if cliente.orientacion else [])
-    piso_orientacion = set(piso.orientacion.split(",") if piso.orientacion else [])
-    if cliente_orientacion and piso_orientacion and not cliente_orientacion.intersection(piso_orientacion):
-        return False
-    
-    # Exact matches for single-select fields
-    for field in [
-        "estado", "ascensor", "bajos", "entreplanta", "altura", "cercania_metro",
-        "edificio_semi_nuevo", "adaptado_movilidad", "balcon", "patio", "terraza",
-        "garaje", "trastero", "interior", "piscina", "urbanizacion", "vistas",
-        "caracteristicas_adicionales", "permuta"
-    ]:
-        cliente_value = cliente.__dict__[field]
-        piso_value = piso.__dict__[field]
-        if cliente_value and cliente_value != piso_value:
+        
+        # Precio: Piso price must be within client's range
+        cliente_precio_min, cliente_precio_max = get_price_range(cliente.precio)
+        if not (cliente_precio_min <= piso.precio <= cliente_precio_max):
             return False
-    
-    return True
+        
+        # Metros Cuadrados: Piso m2 must be within client's range
+        cliente_m2_min, cliente_m2_max = get_m2_range(cliente.m2)
+        if not (cliente_m2_min <= piso.m2 <= cliente_m2_max):
+            return False
+        
+        # Multi-select fields: Cliente values must be subset of piso values
+        multi_select_fields = ["tipo_vivienda", "finalidad", "habitaciones", "banos", "estado"]
+        for field in multi_select_fields:
+            cliente_value = getattr(cliente, field, None)
+            piso_value = getattr(piso, field, None)
+            
+            cliente_values = set(cliente_value.split(",") if cliente_value else [])
+            piso_values = set(piso_value.split(",") if piso_value else [])
+            
+            # Skip if cliente doesn't specify this field
+            if not cliente_values:
+                continue
+                
+            # For finalidad, piso might not have this field, so skip if piso doesn't have it
+            if field == "finalidad" and not piso_values:
+                continue
+                
+            # Check if cliente requirements are met by piso
+            if not cliente_values.issubset(piso_values):
+                return False
+        
+        # Orientación: Optional matching - only check if both have values
+        cliente_orientacion = set(cliente.orientacion.split(",") if cliente.orientacion else [])
+        piso_orientacion = set(piso.orientacion.split(",") if piso.orientacion else [])
+        if cliente_orientacion and piso_orientacion and not cliente_orientacion.intersection(piso_orientacion):
+            return False
+        
+        # Single-select fields: Exact match or cliente accepts "INDIFERENTE"
+        single_select_fields = [
+            "ascensor", "bajos", "entreplanta", "altura", "cercania_metro",
+            "edificio_semi_nuevo", "adaptado_movilidad", "balcon", "patio", "terraza",
+            "garaje", "trastero", "interior", "piscina", "urbanizacion", "vistas"
+        ]
+        
+        for field in single_select_fields:
+            cliente_value = getattr(cliente, field, None)
+            piso_value = getattr(piso, field, None)
+            
+            # Skip if cliente doesn't specify this field or accepts "INDIFERENTE"
+            if not cliente_value or cliente_value == "INDIFERENTE":
+                continue
+                
+            # Check exact match
+            if cliente_value != piso_value:
+                return False
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error in matching: {str(e)}")
+        return False
