@@ -23,7 +23,7 @@ class ClienteCreate(BaseModel):
     bajos: Optional[str] = None
     entreplanta: Optional[str] = None
     m2: int  # 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 150
-    altura: Optional[str] = None
+    altura: Optional[List[str]] = None
     cercania_metro: Optional[str] = None
     orientacion: Optional[List[str]] = None  # Norte, Sur, Este, Oeste, Indiferente
     edificio_semi_nuevo: Optional[str] = None
@@ -101,7 +101,7 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
         bajos=cliente.bajos,
         entreplanta=cliente.entreplanta,
         m2=cliente.m2,
-        altura=cliente.altura,
+        altura=",".join(cliente.altura) if cliente.altura else None,
         cercania_metro=cliente.cercania_metro,
         orientacion=",".join(cliente.orientacion) if cliente.orientacion else None,
         edificio_semi_nuevo=cliente.edificio_semi_nuevo,
