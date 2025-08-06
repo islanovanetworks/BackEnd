@@ -58,8 +58,9 @@ class Cliente(Base):
     urbanizacion = Column(String, nullable=True)
     vistas = Column(String, nullable=True)
     caracteristicas_adicionales = Column(String, nullable=True)
-    banco = Column(String, nullable=True)  # ✅ AGREGADO
-    permuta = Column(String, nullable=True)  # ✅ AGREGADO: SÍ, NO
+    banco = Column(String, nullable=True)
+    permuta = Column(String, nullable=True)  # SÍ, NO
+    kiron = Column(String, nullable=True)  # ✅ AGREGADO: SK, PK, NK
     compania_id = Column(Integer, ForeignKey("companias.id"))
     compania = relationship("Compania", back_populates="clientes")
 
