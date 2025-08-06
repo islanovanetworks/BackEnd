@@ -75,11 +75,18 @@ def is_exact_match_piso_to_cliente(piso: Piso, cliente: Cliente) -> bool:
         return False
     
     # Exact matches for multi-select fields
-    for field in ["tipo_vivienda", "finalidad", "habitaciones", "banos", "orientacion"]:
+    # Exact matches for multi-select fields (excluding orientacion which is now optional)
+    for field in ["tipo_vivienda", "finalidad", "habitaciones", "banos"]:
         cliente_values = set(cliente.__dict__[field].split(",") if cliente.__dict__[field] else [])
         piso_values = set(piso.__dict__[field].split(",") if piso.__dict__[field] else [])
         if cliente_values and not cliente_values.issubset(piso_values):
             return False
+    
+    # Orientación: Optional matching - only check if both have values
+    cliente_orientacion = set(cliente.orientacion.split(",") if cliente.orientacion else [])
+    piso_orientacion = set(piso.orientacion.split(",") if piso.orientacion else [])
+    if cliente_orientacion and piso_orientacion and not cliente_orientacion.intersection(piso_orientacion):
+        return False
     
     # Exact matches for single-select fields
     for field in [
