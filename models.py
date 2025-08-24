@@ -22,8 +22,10 @@ class Usuario(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     password = Column(String)
+    rol = Column(String, default="Asesor")  # "Asesor" o "Supervisor"
     compania_id = Column(Integer, ForeignKey("companias.id"))
     compania = relationship("Compania", back_populates="usuarios")
+    clientes_asignados = relationship("Cliente", back_populates="asesor_asignado")
 
 class Cliente(Base):
     __tablename__ = "clientes"
@@ -60,9 +62,11 @@ class Cliente(Base):
     caracteristicas_adicionales = Column(String, nullable=True)
     banco = Column(String, nullable=True)
     permuta = Column(String, nullable=True)  # SÍ, NO
-    kiron = Column(String, nullable=True)  # ✅ AGREGADO: SK, PK, NK
+    kiron = Column(String, nullable=True)  # SK, PK, NK
     compania_id = Column(Integer, ForeignKey("companias.id"))
+    asesor_id = Column(Integer, ForeignKey("usuarios.id"))  # NUEVO: Asignación a asesor
     compania = relationship("Compania", back_populates="clientes")
+    asesor_asignado = relationship("Usuario", back_populates="clientes_asignados")  # NUEVO
 
 class Piso(Base):
     __tablename__ = "pisos"
