@@ -40,8 +40,9 @@ class ClienteCreate(BaseModel):
     caracteristicas_adicionales: Optional[str] = None
     banco: Optional[str] = None
     permuta: Optional[str] = None  # SÍ, NO
-    kiron: Optional[str] = None  # ✅ AGREGADO: SK, PK, NK
+    kiron: Optional[str] = None  # SK, PK, NK
     compania_id: int
+    asesor_id: Optional[int] = None  # NUEVO: Para que Supervisor pueda asignar cliente a otro asesor
 
 class ClienteResponse(BaseModel):
     id: int
@@ -55,7 +56,7 @@ class ClienteResponse(BaseModel):
     finalidad: Optional[str]
     habitaciones: Optional[str]
     banos: Optional[str]
-    estado: Optional[str]  # Se almacena como string separado por comas
+    estado: Optional[str]
     ascensor: Optional[str]
     bajos: Optional[str]
     entreplanta: Optional[str]
@@ -77,7 +78,10 @@ class ClienteResponse(BaseModel):
     caracteristicas_adicionales: Optional[str]
     banco: Optional[str]
     permuta: Optional[str]
+    kiron: Optional[str]
     compania_id: int
+    asesor_id: Optional[int]  # NUEVO
+    asesor_asignado: Optional[dict] = None  # NUEVO: Para mostrar info del asesor
 
     class Config:
         orm_mode = True
@@ -86,6 +90,24 @@ class ClienteResponse(BaseModel):
 def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     if cliente.compania_id != current_user.compania_id:
         raise HTTPException(status_code=403, detail="Not authorized to create cliente for this compania")
+    
+    # Determinar el asesor asignado
+    asesor_id = cliente.asesor_id
+    
+    # Si es Asesor, solo puede asignarse clientes a sí mismo
+    if current_user.rol == "Asesor":
+        asesor_id = current_user.id
+    # Si es Supervisor y no especifica asesor_id, se asigna a sí mismo
+    elif current_user.rol == "Supervisor" and not asesor_id:
+        asesor_id = current_user.id
+    # Si es Supervisor y especifica asesor_id, validar que el asesor existe y pertenece a la compañía
+    elif current_user.rol == "Supervisor" and asesor_id:
+        asesor_target = db.query(Usuario).filter(
+            Usuario.id == asesor_id, 
+            Usuario.compania_id == current_user.compania_id
+        ).first()
+        if not asesor_target:
+            raise HTTPException(status_code=400, detail="El asesor especificado no existe o no pertenece a tu compañía")
     
     try:
         db_cliente = Cliente(
@@ -121,8 +143,9 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
             caracteristicas_adicionales=cliente.caracteristicas_adicionales,
             banco=cliente.banco,
             permuta=cliente.permuta,
-            kiron=cliente.kiron,  # ✅ AGREGADO
-            compania_id=cliente.compania_id
+            kiron=cliente.kiron,
+            compania_id=cliente.compania_id,
+            asesor_id=asesor_id  # NUEVO: Asignar cliente al asesor
         )
         db.add(db_cliente)
         db.commit()
@@ -134,5 +157,23 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
 
 @router.get("/", response_model=list[ClienteResponse])
 def read_clientes(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
+    # Si es Asesor, solo ve sus clientes
+    if current_user.rol == "Asesor":
+        clientes = db.query(Cliente).filter(
+            Cliente.compania_id == current_user.compania_id,
+            Cliente.asesor_id == current_user.id
+        ).all()
+    # Si es Supervisor, ve todos los clientes de la compañía
+    else:
+        clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
+    
+    # Agregar información del asesor asignado
+    for cliente in clientes:
+        if cliente.asesor_asignado:
+            cliente.asesor_asignado = {
+                "id": cliente.asesor_asignado.id,
+                "email": cliente.asesor_asignado.email,
+                "rol": cliente.asesor_asignado.rol
+            }
+    
     return clientes
