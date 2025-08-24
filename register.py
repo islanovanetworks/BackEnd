@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from models import get_db, Usuario, Compania
+from utils import require_supervisor
 import logging
 
 # Configure logging
