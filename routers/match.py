@@ -12,7 +12,7 @@ class MatchResponse(BaseModel):
     score: int  # Score from 50 to 100
 
 @router.get("/", response_model=list[MatchResponse])
-def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = Depends(get_db), user=Depends(get_current_user)):
+def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     if piso_id and cliente_id:
         raise HTTPException(status_code=400, detail="Provide either piso_id or cliente_id, not both")
     if not (piso_id or cliente_id):
@@ -21,20 +21,46 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
     matches = []
     
     if piso_id:
-        piso = db.query(Piso).filter(Piso.id == piso_id, Piso.compania_id == user.compania_id).first()
+        # Verificar que el piso pertenece a la compañía del usuario
+        piso = db.query(Piso).filter(Piso.id == piso_id, Piso.compania_id == current_user.compania_id).first()
         if not piso:
             raise HTTPException(status_code=404, detail="Piso no encontrado")
-        clientes = db.query(Cliente).filter(Cliente.compania_id == user.compania_id).all()
+        
+        # Obtener clientes según el rol del usuario
+        if current_user.rol == "Asesor":
+            # Asesor solo ve sus clientes
+            clientes = db.query(Cliente).filter(
+                Cliente.compania_id == current_user.compania_id,
+                Cliente.asesor_id == current_user.id
+            ).all()
+        else:
+            # Supervisor ve todos los clientes de la compañía
+            clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
+        
         for cliente in clientes:
             score = calculate_match_score(piso, cliente)
             if score >= 50:  # Only show matches with 50% or higher
                 matches.append(MatchResponse(cliente_id=cliente.id, piso_id=piso.id, score=score))
     
     elif cliente_id:
-        cliente = db.query(Cliente).filter(Cliente.id == cliente_id, Cliente.compania_id == user.compania_id).first()
+        # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
+        if current_user.rol == "Asesor":
+            cliente = db.query(Cliente).filter(
+                Cliente.id == cliente_id, 
+                Cliente.compania_id == current_user.compania_id,
+                Cliente.asesor_id == current_user.id
+            ).first()
+        else:
+            cliente = db.query(Cliente).filter(
+                Cliente.id == cliente_id, 
+                Cliente.compania_id == current_user.compania_id
+            ).first()
+            
         if not cliente:
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
-        pisos = db.query(Piso).filter(Piso.compania_id == user.compania_id).all()
+        
+        # Todos los usuarios pueden ver todos los pisos de su compañía
+        pisos = db.query(Piso).filter(Piso.compania_id == current_user.compania_id).all()
         for piso in pisos:
             score = calculate_match_score(piso, cliente)
             if score >= 50:  # Only show matches with 50% or higher
