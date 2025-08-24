@@ -177,3 +177,108 @@ def read_clientes(db: Session = Depends(get_db), current_user=Depends(get_curren
             }
     
     return clientes
+
+
+@router.delete("/{cliente_id}")
+def delete_cliente(cliente_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """Eliminar cliente - Asesor solo puede eliminar sus clientes, Supervisor puede eliminar cualquiera"""
+    
+    if current_user.rol == "Asesor":
+        cliente = db.query(Cliente).filter(
+            Cliente.id == cliente_id,
+            Cliente.compania_id == current_user.compania_id,
+            Cliente.asesor_id == current_user.id
+        ).first()
+    else:  # Supervisor
+        cliente = db.query(Cliente).filter(
+            Cliente.id == cliente_id,
+            Cliente.compania_id == current_user.compania_id
+        ).first()
+    
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado o sin permisos")
+    
+    db.delete(cliente)
+    db.commit()
+    return {"message": f"Cliente {cliente.nombre} eliminado exitosamente"}
+
+@router.put("/{cliente_id}", response_model=ClienteResponse)
+def update_cliente(
+    cliente_id: int, 
+    cliente_data: ClienteCreate, 
+    db: Session = Depends(get_db), 
+    current_user=Depends(get_current_user)
+):
+    """Editar cliente - Asesor solo puede editar sus clientes, Supervisor puede editar cualquiera"""
+    
+    if current_user.rol == "Asesor":
+        cliente = db.query(Cliente).filter(
+            Cliente.id == cliente_id,
+            Cliente.compania_id == current_user.compania_id,
+            Cliente.asesor_id == current_user.id
+        ).first()
+        # Asesor no puede cambiar la asignación
+        asesor_id = current_user.id
+    else:  # Supervisor
+        cliente = db.query(Cliente).filter(
+            Cliente.id == cliente_id,
+            Cliente.compania_id == current_user.compania_id
+        ).first()
+        # Supervisor puede cambiar asignación o mantener la actual
+        asesor_id = cliente_data.asesor_id if cliente_data.asesor_id else cliente.asesor_id
+    
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado o sin permisos")
+    
+    # Validar que la compañía coincida
+    if cliente_data.compania_id != current_user.compania_id:
+        raise HTTPException(status_code=403, detail="No autorizado para esta compañía")
+    
+    # Si es Supervisor y quiere cambiar asesor, validar que el nuevo asesor existe
+    if current_user.rol == "Supervisor" and asesor_id != cliente.asesor_id:
+        nuevo_asesor = db.query(Usuario).filter(
+            Usuario.id == asesor_id,
+            Usuario.compania_id == current_user.compania_id
+        ).first()
+        if not nuevo_asesor:
+            raise HTTPException(status_code=400, detail="El asesor especificado no existe")
+    
+    # Actualizar campos
+    cliente.nombre = cliente_data.nombre
+    cliente.telefono = cliente_data.telefono
+    cliente.zona = ",".join(cliente_data.zona)
+    cliente.subzonas = cliente_data.subzonas
+    cliente.entrada = cliente_data.entrada
+    cliente.precio = cliente_data.precio
+    cliente.tipo_vivienda = ",".join(cliente_data.tipo_vivienda) if cliente_data.tipo_vivienda else None
+    cliente.finalidad = ",".join(cliente_data.finalidad) if cliente_data.finalidad else None
+    cliente.habitaciones = ",".join(map(str, cliente_data.habitaciones)) if cliente_data.habitaciones else None
+    cliente.banos = ",".join(cliente_data.banos) if cliente_data.banos else None
+    cliente.estado = ",".join(cliente_data.estado) if cliente_data.estado else None
+    cliente.ascensor = cliente_data.ascensor
+    cliente.bajos = cliente_data.bajos
+    cliente.entreplanta = cliente_data.entreplanta
+    cliente.m2 = cliente_data.m2
+    cliente.altura = ",".join(cliente_data.altura) if cliente_data.altura else None
+    cliente.cercania_metro = cliente_data.cercania_metro
+    cliente.orientacion = ",".join(cliente_data.orientacion) if cliente_data.orientacion else None
+    cliente.edificio_semi_nuevo = cliente_data.edificio_semi_nuevo
+    cliente.adaptado_movilidad = cliente_data.adaptado_movilidad
+    cliente.balcon = cliente_data.balcon
+    cliente.patio = cliente_data.patio
+    cliente.terraza = cliente_data.terraza
+    cliente.garaje = cliente_data.garaje
+    cliente.trastero = cliente_data.trastero
+    cliente.interior = cliente_data.interior
+    cliente.piscina = cliente_data.piscina
+    cliente.urbanizacion = cliente_data.urbanizacion
+    cliente.vistas = cliente_data.vistas
+    cliente.caracteristicas_adicionales = cliente_data.caracteristicas_adicionales
+    cliente.banco = cliente_data.banco
+    cliente.permuta = cliente_data.permuta
+    cliente.kiron = cliente_data.kiron
+    cliente.asesor_id = asesor_id
+    
+    db.commit()
+    db.refresh(cliente)
+    return cliente
