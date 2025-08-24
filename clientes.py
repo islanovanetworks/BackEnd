@@ -17,7 +17,6 @@ class ClienteCreate(BaseModel):
     tipo_vivienda: Optional[List[str]] = None  # Piso, Ático, Chalet, Local
     finalidad: Optional[List[str]] = None  # Primera Vivienda, Inversión
     habitaciones: Optional[List[int]] = None  # 0 to 5
-    banos: Optional[List[str]] = None  # 1, 1+1, 2
     estado: Optional[List[str]] = None  # Entrar a Vivir, Actualizar, A Reformar
     ascensor: Optional[str] = None  # SÍ, Después de 1º, Después de 2º, etc.
     bajos: Optional[str] = None
@@ -26,17 +25,9 @@ class ClienteCreate(BaseModel):
     altura: Optional[List[str]] = None
     cercania_metro: Optional[str] = None
     orientacion: Optional[List[str]] = None  # Norte, Sur, Este, Oeste
-    edificio_semi_nuevo: Optional[str] = None
-    adaptado_movilidad: Optional[str] = None
-    balcon: Optional[str] = None
+    balcon_terraza: Optional[str] = None  # RENOMBRADO: Balcón/Terraza
     patio: Optional[str] = None
-    terraza: Optional[str] = None
-    garaje: Optional[str] = None
-    trastero: Optional[str] = None
     interior: Optional[str] = None
-    piscina: Optional[str] = None
-    urbanizacion: Optional[str] = None
-    vistas: Optional[str] = None
     caracteristicas_adicionales: Optional[str] = None
     banco: Optional[str] = None
     permuta: Optional[str] = None  # SÍ, NO
@@ -55,7 +46,6 @@ class ClienteResponse(BaseModel):
     tipo_vivienda: Optional[str]
     finalidad: Optional[str]
     habitaciones: Optional[str]
-    banos: Optional[str]
     estado: Optional[str]
     ascensor: Optional[str]
     bajos: Optional[str]
@@ -64,17 +54,9 @@ class ClienteResponse(BaseModel):
     altura: Optional[str]
     cercania_metro: Optional[str]
     orientacion: Optional[str]
-    edificio_semi_nuevo: Optional[str]
-    adaptado_movilidad: Optional[str]
-    balcon: Optional[str]
+    balcon_terraza: Optional[str]  # RENOMBRADO: Balcón/Terraza
     patio: Optional[str]
-    terraza: Optional[str]
-    garaje: Optional[str]
-    trastero: Optional[str]
     interior: Optional[str]
-    piscina: Optional[str]
-    urbanizacion: Optional[str]
-    vistas: Optional[str]
     caracteristicas_adicionales: Optional[str]
     banco: Optional[str]
     permuta: Optional[str]
@@ -120,7 +102,6 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
             tipo_vivienda=",".join(cliente.tipo_vivienda) if cliente.tipo_vivienda else None,
             finalidad=",".join(cliente.finalidad) if cliente.finalidad else None,
             habitaciones=",".join(map(str, cliente.habitaciones)) if cliente.habitaciones else None,
-            banos=",".join(cliente.banos) if cliente.banos else None,
             estado=",".join(cliente.estado) if cliente.estado else None,
             ascensor=cliente.ascensor,
             bajos=cliente.bajos,
@@ -129,17 +110,9 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
             altura=",".join(cliente.altura) if cliente.altura else None,
             cercania_metro=cliente.cercania_metro,
             orientacion=",".join(cliente.orientacion) if cliente.orientacion else None,
-            edificio_semi_nuevo=cliente.edificio_semi_nuevo,
-            adaptado_movilidad=cliente.adaptado_movilidad,
-            balcon=cliente.balcon,
+            balcon_terraza=cliente.balcon_terraza,
             patio=cliente.patio,
-            terraza=cliente.terraza,
-            garaje=cliente.garaje,
-            trastero=cliente.trastero,
             interior=cliente.interior,
-            piscina=cliente.piscina,
-            urbanizacion=cliente.urbanizacion,
-            vistas=cliente.vistas,
             caracteristicas_adicionales=cliente.caracteristicas_adicionales,
             banco=cliente.banco,
             permuta=cliente.permuta,
@@ -253,7 +226,6 @@ def update_cliente(
     cliente.tipo_vivienda = ",".join(cliente_data.tipo_vivienda) if cliente_data.tipo_vivienda else None
     cliente.finalidad = ",".join(cliente_data.finalidad) if cliente_data.finalidad else None
     cliente.habitaciones = ",".join(map(str, cliente_data.habitaciones)) if cliente_data.habitaciones else None
-    cliente.banos = ",".join(cliente_data.banos) if cliente_data.banos else None
     cliente.estado = ",".join(cliente_data.estado) if cliente_data.estado else None
     cliente.ascensor = cliente_data.ascensor
     cliente.bajos = cliente_data.bajos
@@ -262,17 +234,9 @@ def update_cliente(
     cliente.altura = ",".join(cliente_data.altura) if cliente_data.altura else None
     cliente.cercania_metro = cliente_data.cercania_metro
     cliente.orientacion = ",".join(cliente_data.orientacion) if cliente_data.orientacion else None
-    cliente.edificio_semi_nuevo = cliente_data.edificio_semi_nuevo
-    cliente.adaptado_movilidad = cliente_data.adaptado_movilidad
-    cliente.balcon = cliente_data.balcon
+    cliente.balcon_terraza = cliente_data.balcon_terraza
     cliente.patio = cliente_data.patio
-    cliente.terraza = cliente_data.terraza
-    cliente.garaje = cliente_data.garaje
-    cliente.trastero = cliente_data.trastero
     cliente.interior = cliente_data.interior
-    cliente.piscina = cliente_data.piscina
-    cliente.urbanizacion = cliente_data.urbanizacion
-    cliente.vistas = cliente_data.vistas
     cliente.caracteristicas_adicionales = cliente_data.caracteristicas_adicionales
     cliente.banco = cliente_data.banco
     cliente.permuta = cliente_data.permuta
