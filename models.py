@@ -71,6 +71,7 @@ class Cliente(Base):
 class Piso(Base):
     __tablename__ = "pisos"
     id = Column(Integer, primary_key=True, index=True)
+    direccion = Column(String, nullable=True)  # ✅ AÑADIR este campo
     zona = Column(String)  # ✅ AGREGADO: Comma-separated (e.g., "ALTO,OLIVOS")
     precio = Column(Float)
     tipo_vivienda = Column(String, nullable=True)
