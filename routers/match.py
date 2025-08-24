@@ -363,15 +363,11 @@ def check_interior_match(piso: Piso, cliente: Cliente) -> bool:
     return cliente.interior == piso.interior
 
 def check_balcon_terraza_match(piso: Piso, cliente: Cliente) -> int:
-    """Check balcon and terraza match."""
+    """Check balcon_terraza match."""
     penalty = 0
     
-    # Check balcon
-    if cliente.balcon == "SÍ" and piso.balcon == "NO":
-        penalty += 5
-    
-    # Check terraza  
-    if cliente.terraza == "SÍ" and piso.terraza == "NO":
+    # Check balcon_terraza
+    if cliente.balcon_terraza == "SÍ" and piso.balcon_terraza == "NO":
         penalty += 5
     
     return penalty
