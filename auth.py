@@ -45,7 +45,12 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             logger.error(f"Password verification failed for: {form_data.username}")
             raise HTTPException(status_code=401, detail="Incorrect email or password")
         
-        access_token = create_access_token(data={"sub": user.email, "compania_id": user.compania_id})
+        access_token = create_access_token(data={
+            "sub": user.email, 
+            "compania_id": user.compania_id,
+            "user_id": user.id,
+            "rol": user.rol
+        })
         logger.info(f"Login successful for: {form_data.username}")
         return {"access_token": access_token, "token_type": "bearer"}
     
