@@ -8,6 +8,7 @@ from utils import get_current_user
 router = APIRouter(prefix="/pisos", tags=["pisos"])
 
 class PisoCreate(BaseModel):
+    direccion: Optional[str] = None  # ✅ AÑADIR este campo
     zona: List[str]  # ALTO, OLIVOS, LAGUNA, BATÁN, SEPÚLVEDA, MANZANARES, PÍO, PUERTA, JESUITAS
     precio: float
     tipo_vivienda: Optional[List[str]] = None  # Piso, Casa, Chalet, Adosado, Dúplex, Ático, Estudio
@@ -65,12 +66,14 @@ class PisoResponse(BaseModel):
     vistas: Optional[str]
     caracteristicas_adicionales: Optional[str]
     compania_id: int
+    direccion: Optional[str] = None  # ✅ AÑADIR este campo
 
 @router.post("/", response_model=PisoResponse)
 def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     if piso.compania_id != current_user.compania_id:
         raise HTTPException(status_code=403, detail="Not authorized to create piso for this compania")
     db_piso = Piso(
+        direccion=piso.direccion,  # ✅ AÑADIR este campo
         zona=",".join(piso.zona),  # ✅ FIXED: Handle array properly
         precio=piso.precio,
         tipo_vivienda=",".join(piso.tipo_vivienda) if piso.tipo_vivienda else None,
