@@ -39,7 +39,6 @@ class Cliente(Base):
     tipo_vivienda = Column(String, nullable=True)  # Comma-separated
     finalidad = Column(String, nullable=True)  # Comma-separated
     habitaciones = Column(String, nullable=True)  # Comma-separated (0-5)
-    banos = Column(String, nullable=True)  # Comma-separated ("1", "1+1", "2")
     estado = Column(String, nullable=True)  # Comma-separated: Entrar a Vivir, Actualizar, A Reformar
     ascensor = Column(String, nullable=True)  # SÍ, HASTA 1º, ..., HASTA 5º
     bajos = Column(String, nullable=True)
@@ -48,17 +47,9 @@ class Cliente(Base):
     altura = Column(String, nullable=True)
     cercania_metro = Column(String, nullable=True)
     orientacion = Column(String, nullable=True)  # Comma-separated
-    edificio_semi_nuevo = Column(String, nullable=True)
-    adaptado_movilidad = Column(String, nullable=True)
-    balcon = Column(String, nullable=True)
+    balcon_terraza = Column(String, nullable=True)  # RENOMBRADO: Balcón/Terraza
     patio = Column(String, nullable=True)
-    terraza = Column(String, nullable=True)
-    garaje = Column(String, nullable=True)
-    trastero = Column(String, nullable=True)
     interior = Column(String, nullable=True)
-    piscina = Column(String, nullable=True)
-    urbanizacion = Column(String, nullable=True)
-    vistas = Column(String, nullable=True)
     caracteristicas_adicionales = Column(String, nullable=True)
     banco = Column(String, nullable=True)
     permuta = Column(String, nullable=True)  # SÍ, NO
@@ -71,12 +62,11 @@ class Cliente(Base):
 class Piso(Base):
     __tablename__ = "pisos"
     id = Column(Integer, primary_key=True, index=True)
-    direccion = Column(String, nullable=True)  # ✅ AÑADIR este campo
-    zona = Column(String)  # ✅ AGREGADO: Comma-separated (e.g., "ALTO,OLIVOS")
+    direccion = Column(String, nullable=True)
+    zona = Column(String)  # Comma-separated (e.g., "ALTO,OLIVOS")
     precio = Column(Float)
     tipo_vivienda = Column(String, nullable=True)
     habitaciones = Column(String, nullable=True)
-    banos = Column(String, nullable=True)
     estado = Column(String, nullable=True)
     ascensor = Column(String, nullable=True)
     bajos = Column(String, nullable=True)
@@ -85,17 +75,9 @@ class Piso(Base):
     altura = Column(String, nullable=True)
     cercania_metro = Column(String, nullable=True)
     orientacion = Column(String, nullable=True)
-    edificio_semi_nuevo = Column(String, nullable=True)
-    adaptado_movilidad = Column(String, nullable=True)
-    balcon = Column(String, nullable=True)
+    balcon_terraza = Column(String, nullable=True)  # RENOMBRADO: Balcón/Terraza
     patio = Column(String, nullable=True)
-    terraza = Column(String, nullable=True)
-    garaje = Column(String, nullable=True)
-    trastero = Column(String, nullable=True)
     interior = Column(String, nullable=True)
-    piscina = Column(String, nullable=True)
-    urbanizacion = Column(String, nullable=True)
-    vistas = Column(String, nullable=True)
     caracteristicas_adicionales = Column(String, nullable=True)
     compania_id = Column(Integer, ForeignKey("companias.id"))
     compania = relationship("Compania", back_populates="pisos")
