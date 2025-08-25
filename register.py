@@ -107,3 +107,48 @@ def register_supervisor(
         db.rollback()
         logger.error(f"Failed to register supervisor: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to register supervisor: {str(e)}")
+
+@router.post("/first-supervisor", response_model=SupervisorUserCreate)
+def register_first_supervisor(user: SupervisorUserCreate, db: Session = Depends(get_db)):
+    """Registro del primer supervisor de una compañía - NO requiere autenticación"""
+    try:
+        # Verificar que no existe ningún supervisor en la compañía
+        existing_supervisor = db.query(Usuario).filter(
+            Usuario.compania_id == user.compania_id,
+            Usuario.rol == "Supervisor"
+        ).first()
+        
+        if existing_supervisor:
+            raise HTTPException(status_code=400, detail="Ya existe un supervisor en esta compañía. Usa el endpoint /register/supervisor")
+        
+        # Check if company exists
+        compania = db.query(Compania).filter(Compania.id == user.compania_id).first()
+        if not compania:
+            raise HTTPException(status_code=400, detail=f"Company with ID {user.compania_id} does not exist")
+        
+        # Check if email is already registered
+        existing_user = db.query(Usuario).filter(Usuario.email == user.email).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Hash the password
+        hashed_password = pwd_context.hash(user.password)
+        
+        # Create first supervisor
+        db_user = Usuario(
+            email=user.email,
+            password=hashed_password,
+            compania_id=user.compania_id,
+            rol="Supervisor"
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        logger.info(f"First supervisor {user.email} created for company {user.compania_id}")
+        
+        return user
+    
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to register first supervisor: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to register first supervisor: {str(e)}")
