@@ -52,29 +52,42 @@ class PisoResponse(BaseModel):
 def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     if piso.compania_id != current_user.compania_id:
         raise HTTPException(status_code=403, detail="Not authorized to create piso for this compania")
-    db_piso = Piso(
-        direccion=piso.direccion,
-        zona=",".join(piso.zona),
-        precio=piso.precio,
-        tipo_vivienda=",".join(piso.tipo_vivienda) if piso.tipo_vivienda else None,
-        habitaciones=",".join(map(str, piso.habitaciones)) if piso.habitaciones else None,
-        estado=piso.estado,
-        ascensor=piso.ascensor,
-        bajos=piso.bajos,
-        entreplanta=piso.entreplanta,
-        m2=piso.m2,
-        altura=piso.altura,
-        cercania_metro=piso.cercania_metro,
-        balcon_terraza=piso.balcon_terraza,
-        patio=piso.patio,
-        interior=piso.interior,
-        caracteristicas_adicionales=piso.caracteristicas_adicionales,
-        compania_id=piso.compania_id
-    )
-    db.add(db_piso)
-    db.commit()
-    db.refresh(db_piso)
-    return db_piso
+    try:
+        # Validaciones
+        if not piso.zona or len(piso.zona) == 0:
+            raise HTTPException(status_code=400, detail="Debe seleccionar al menos una zona")
+        
+        db_piso = Piso(
+            direccion=piso.direccion.strip() if piso.direccion else None,
+            zona=",".join(piso.zona) if isinstance(piso.zona, list) else str(piso.zona),
+            precio=float(piso.precio),
+            tipo_vivienda=",".join(piso.tipo_vivienda) if piso.tipo_vivienda else None,
+            habitaciones=",".join(map(str, piso.habitaciones)) if piso.habitaciones else None,
+            estado=piso.estado,
+            ascensor=piso.ascensor,
+            bajos=piso.bajos,
+            entreplanta=piso.entreplanta,
+            m2=int(piso.m2),
+            altura=piso.altura,
+            cercania_metro=piso.cercania_metro,
+            balcon_terraza=piso.balcon_terraza,
+            patio=piso.patio,
+            interior=piso.interior,
+            caracteristicas_adicionales=piso.caracteristicas_adicionales.strip() if piso.caracteristicas_adicionales else None,
+            compania_id=piso.compania_id
+        )
+        db.add(db_piso)
+        db.commit()
+        db.refresh(db_piso)
+        return db_piso
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error en los datos: {str(e)}")
+    except Exception as e:
+        db.rollback()
+        import logging
+        logging.error(f"Error creating piso: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
 @router.get("/", response_model=list[PisoResponse])
 def read_pisos(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
