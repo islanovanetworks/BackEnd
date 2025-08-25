@@ -24,7 +24,6 @@ class ClienteCreate(BaseModel):
     m2: int  # metros cuadrados
     altura: Optional[List[str]] = None
     cercania_metro: Optional[str] = None
-    orientacion: Optional[List[str]] = None  # Norte, Sur, Este, Oeste
     balcon_terraza: Optional[str] = None  # RENOMBRADO: Balcón/Terraza
     patio: Optional[str] = None
     interior: Optional[str] = None
@@ -53,7 +52,6 @@ class ClienteResponse(BaseModel):
     m2: int
     altura: Optional[str]
     cercania_metro: Optional[str]
-    orientacion: Optional[str]
     balcon_terraza: Optional[str]  # RENOMBRADO: Balcón/Terraza
     patio: Optional[str]
     interior: Optional[str]
@@ -109,7 +107,6 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
             m2=cliente.m2,
             altura=",".join(cliente.altura) if cliente.altura else None,
             cercania_metro=cliente.cercania_metro,
-            orientacion=",".join(cliente.orientacion) if cliente.orientacion else None,
             balcon_terraza=cliente.balcon_terraza,
             patio=cliente.patio,
             interior=cliente.interior,
@@ -233,7 +230,6 @@ def update_cliente(
     cliente.m2 = cliente_data.m2
     cliente.altura = ",".join(cliente_data.altura) if cliente_data.altura else None
     cliente.cercania_metro = cliente_data.cercania_metro
-    cliente.orientacion = ",".join(cliente_data.orientacion) if cliente_data.orientacion else None
     cliente.balcon_terraza = cliente_data.balcon_terraza
     cliente.patio = cliente_data.patio
     cliente.interior = cliente_data.interior
