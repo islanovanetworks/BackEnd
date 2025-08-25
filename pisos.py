@@ -20,7 +20,6 @@ class PisoCreate(BaseModel):
     m2: int  # 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 150
     altura: Optional[str] = None
     cercania_metro: Optional[str] = None
-    orientacion: Optional[List[str]] = None  # Norte, Sur, Este, Oeste, Indiferente
     balcon_terraza: Optional[str] = None  # RENOMBRADO: Balcón/Terraza
     patio: Optional[str] = None
     interior: Optional[str] = None
@@ -42,7 +41,6 @@ class PisoResponse(BaseModel):
     m2: int
     altura: Optional[str]
     cercania_metro: Optional[str]
-    orientacion: Optional[str]
     balcon_terraza: Optional[str]  # RENOMBRADO: Balcón/Terraza
     patio: Optional[str]
     interior: Optional[str]
@@ -67,7 +65,6 @@ def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=De
         m2=piso.m2,
         altura=piso.altura,
         cercania_metro=piso.cercania_metro,
-        orientacion=",".join(piso.orientacion) if piso.orientacion else None,
         balcon_terraza=piso.balcon_terraza,
         patio=piso.patio,
         interior=piso.interior,
