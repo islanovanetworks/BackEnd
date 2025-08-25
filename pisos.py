@@ -30,6 +30,7 @@ class PisoResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     id: int
+    direccion: Optional[str] = None
     zona: str
     precio: float
     tipo_vivienda: Optional[str]
@@ -41,21 +42,26 @@ class PisoResponse(BaseModel):
     m2: int
     altura: Optional[str]
     cercania_metro: Optional[str]
-    balcon_terraza: Optional[str]  # RENOMBRADO: Balcón/Terraza
+    balcon_terraza: Optional[str]
     patio: Optional[str]
     interior: Optional[str]
     caracteristicas_adicionales: Optional[str]
     compania_id: int
-    direccion: Optional[str] = None
 
 @router.post("/", response_model=PisoResponse)
 def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     if piso.compania_id != current_user.compania_id:
         raise HTTPException(status_code=403, detail="Not authorized to create piso for this compania")
     try:
-        # Validaciones
+        # Validaciones mejoradas
         if not piso.zona or len(piso.zona) == 0:
             raise HTTPException(status_code=400, detail="Debe seleccionar al menos una zona")
+        
+        if not piso.precio or piso.precio <= 0:
+            raise HTTPException(status_code=400, detail="El precio debe ser mayor a 0")
+            
+        if not piso.m2 or piso.m2 <= 0:
+            raise HTTPException(status_code=400, detail="Los metros cuadrados deben ser mayor a 0")
         
         db_piso = Piso(
             direccion=piso.direccion.strip() if piso.direccion else None,
@@ -80,6 +86,9 @@ def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=De
         db.commit()
         db.refresh(db_piso)
         return db_piso
+    except HTTPException:
+        db.rollback()
+        raise
     except ValueError as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error en los datos: {str(e)}")
