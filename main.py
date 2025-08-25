@@ -33,6 +33,8 @@ app.add_middleware(
 )
 
 # ✅ Add error handling middleware
+from fastapi.responses import JSONResponse  # AGREGAR ESTE IMPORT AL INICIO
+
 @app.middleware("http")
 async def catch_exceptions_middleware(request, call_next):
     try:
