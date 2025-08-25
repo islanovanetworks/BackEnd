@@ -46,7 +46,6 @@ class Cliente(Base):
     m2 = Column(Integer)  # 30, 40, ..., 150
     altura = Column(String, nullable=True)
     cercania_metro = Column(String, nullable=True)
-    orientacion = Column(String, nullable=True)  # Comma-separated
     balcon_terraza = Column(String, nullable=True)  # RENOMBRADO: Balcón/Terraza
     patio = Column(String, nullable=True)
     interior = Column(String, nullable=True)
@@ -74,7 +73,6 @@ class Piso(Base):
     m2 = Column(Integer)
     altura = Column(String, nullable=True)
     cercania_metro = Column(String, nullable=True)
-    orientacion = Column(String, nullable=True)
     balcon_terraza = Column(String, nullable=True)  # RENOMBRADO: Balcón/Terraza
     patio = Column(String, nullable=True)
     interior = Column(String, nullable=True)
