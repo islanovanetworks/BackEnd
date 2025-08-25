@@ -92,13 +92,20 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
             raise HTTPException(status_code=400, detail="El asesor especificado no existe o no pertenece a tu compañía")
     
     try:
+        # Validación adicional
+        if not cliente.nombre or not cliente.telefono:
+            raise HTTPException(status_code=400, detail="Nombre y teléfono son obligatorios")
+        
+        if not cliente.zona or len(cliente.zona) == 0:
+            raise HTTPException(status_code=400, detail="Debe seleccionar al menos una zona")
+        
         db_cliente = Cliente(
-            nombre=cliente.nombre,
-            telefono=cliente.telefono,
-            zona=",".join(cliente.zona),
-            subzonas=cliente.subzonas,
-            entrada=cliente.entrada,
-            precio=cliente.precio,
+            nombre=cliente.nombre.strip(),
+            telefono=cliente.telefono.strip(),
+            zona=",".join(cliente.zona) if isinstance(cliente.zona, list) else str(cliente.zona),
+            subzonas=cliente.subzonas.strip() if cliente.subzonas else None,
+            entrada=float(cliente.entrada),
+            precio=float(cliente.precio),
             tipo_vivienda=",".join(cliente.tipo_vivienda) if cliente.tipo_vivienda else None,
             finalidad=",".join(cliente.finalidad) if cliente.finalidad else None,
             habitaciones=",".join(map(str, cliente.habitaciones)) if cliente.habitaciones else None,
@@ -106,26 +113,31 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
             ascensor=cliente.ascensor,
             bajos=cliente.bajos,
             entreplanta=cliente.entreplanta,
-            m2=cliente.m2,
+            m2=int(cliente.m2),
             altura=",".join(cliente.altura) if cliente.altura else None,
             cercania_metro=cliente.cercania_metro,
             balcon_terraza=cliente.balcon_terraza,
             patio=cliente.patio,
             interior=cliente.interior,
-            caracteristicas_adicionales=cliente.caracteristicas_adicionales,
-            banco=cliente.banco,
+            caracteristicas_adicionales=cliente.caracteristicas_adicionales.strip() if cliente.caracteristicas_adicionales else None,
+            banco=cliente.banco.strip() if cliente.banco else None,
             permuta=cliente.permuta,
             kiron=cliente.kiron,
             compania_id=cliente.compania_id,
-            asesor_id=asesor_id  # NUEVO: Asignar cliente al asesor
+            asesor_id=asesor_id
         )
         db.add(db_cliente)
         db.commit()
         db.refresh(db_cliente)
         return db_cliente
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error en los datos: {str(e)}")
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating cliente: {str(e)}")
+        import logging
+        logging.error(f"Error creating cliente: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
 @router.get("/", response_model=list[ClienteResponse])
 def read_clientes(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
