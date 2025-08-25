@@ -34,6 +34,12 @@ class ClienteCreate(BaseModel):
     compania_id: int
     asesor_id: Optional[int] = None  # NUEVO: Para que Supervisor pueda asignar cliente a otro asesor
 
+# Nuevo modelo para la información del asesor
+class AsesorInfo(BaseModel):
+    id: int
+    email: str
+    rol: str
+
 class ClienteResponse(BaseModel):
     id: int
     nombre: str
@@ -52,7 +58,7 @@ class ClienteResponse(BaseModel):
     m2: int
     altura: Optional[str]
     cercania_metro: Optional[str]
-    balcon_terraza: Optional[str]  # RENOMBRADO: Balcón/Terraza
+    balcon_terraza: Optional[str]
     patio: Optional[str]
     interior: Optional[str]
     caracteristicas_adicionales: Optional[str]
@@ -60,11 +66,52 @@ class ClienteResponse(BaseModel):
     permuta: Optional[str]
     kiron: Optional[str]
     compania_id: int
-    asesor_id: Optional[int]  # NUEVO
-    asesor_asignado: Optional[dict] = None  # NUEVO: Para mostrar info del asesor
+    asesor_id: Optional[int]
+    asesor_asignado: Optional[AsesorInfo] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Actualizado para Pydantic v2
+
+    @classmethod
+    def from_orm_with_asesor(cls, cliente):
+        """Método personalizado para crear la respuesta con información del asesor"""
+        asesor_info = None
+        if cliente.asesor_asignado:
+            asesor_info = AsesorInfo(
+                id=cliente.asesor_asignado.id,
+                email=cliente.asesor_asignado.email,
+                rol=cliente.asesor_asignado.rol
+            )
+        
+        return cls(
+            id=cliente.id,
+            nombre=cliente.nombre,
+            telefono=cliente.telefono,
+            zona=cliente.zona,
+            subzonas=cliente.subzonas,
+            entrada=cliente.entrada,
+            precio=cliente.precio,
+            tipo_vivienda=cliente.tipo_vivienda,
+            finalidad=cliente.finalidad,
+            habitaciones=cliente.habitaciones,
+            estado=cliente.estado,
+            ascensor=cliente.ascensor,
+            bajos=cliente.bajos,
+            entreplanta=cliente.entreplanta,
+            m2=cliente.m2,
+            altura=cliente.altura,
+            cercania_metro=cliente.cercania_metro,
+            balcon_terraza=cliente.balcon_terraza,
+            patio=cliente.patio,
+            interior=cliente.interior,
+            caracteristicas_adicionales=cliente.caracteristicas_adicionales,
+            banco=cliente.banco,
+            permuta=cliente.permuta,
+            kiron=cliente.kiron,
+            compania_id=cliente.compania_id,
+            asesor_id=cliente.asesor_id,
+            asesor_asignado=asesor_info
+        )
 
 @router.post("/", response_model=ClienteResponse)
 def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
@@ -129,7 +176,7 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
         db.add(db_cliente)
         db.commit()
         db.refresh(db_cliente)
-        return db_cliente
+        return ClienteResponse.from_orm_with_asesor(db_cliente)
     except ValueError as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error en los datos: {str(e)}")
@@ -151,16 +198,8 @@ def read_clientes(db: Session = Depends(get_db), current_user=Depends(get_curren
     else:
         clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
     
-    # Agregar información del asesor asignado
-    for cliente in clientes:
-        if cliente.asesor_asignado:
-            cliente.asesor_asignado = {
-                "id": cliente.asesor_asignado.id,
-                "email": cliente.asesor_asignado.email,
-                "rol": cliente.asesor_asignado.rol
-            }
-    
-    return clientes
+    # Usar el método personalizado para crear las respuestas
+    return [ClienteResponse.from_orm_with_asesor(cliente) for cliente in clientes]
 
 
 @router.delete("/{cliente_id}")
@@ -255,4 +294,4 @@ def update_cliente(
     
     db.commit()
     db.refresh(cliente)
-    return cliente
+    return ClienteResponse.from_orm_with_asesor(cliente)
