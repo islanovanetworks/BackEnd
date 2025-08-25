@@ -81,7 +81,9 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
     elif current_user.rol == "Supervisor" and not asesor_id:
         asesor_id = current_user.id
     # Si es Supervisor y especifica asesor_id, validar que el asesor existe y pertenece a la compañía
+    # Si es Supervisor y especifica asesor_id, validar que el asesor existe y pertenece a la compañía
     elif current_user.rol == "Supervisor" and asesor_id:
+        from models import Usuario  # Asegurar import
         asesor_target = db.query(Usuario).filter(
             Usuario.id == asesor_id, 
             Usuario.compania_id == current_user.compania_id
