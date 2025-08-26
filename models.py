@@ -63,6 +63,7 @@ class Piso(Base):
     id = Column(Integer, primary_key=True, index=True)
     direccion = Column(String, nullable=True)
     zona = Column(String)  # Comma-separated (e.g., "ALTO,OLIVOS")
+    subzonas = Column(String, nullable=True)  # NUEVO: Campo informativo
     precio = Column(Float)
     tipo_vivienda = Column(String, nullable=True)
     habitaciones = Column(String, nullable=True)
@@ -70,6 +71,7 @@ class Piso(Base):
     ascensor = Column(String, nullable=True)
     bajos = Column(String, nullable=True)
     entreplanta = Column(String, nullable=True)
+    planta = Column(String, nullable=True)  # NUEVO: Campo informativo
     m2 = Column(Integer)
     altura = Column(String, nullable=True)
     cercania_metro = Column(String, nullable=True)
