@@ -10,6 +10,7 @@ router = APIRouter(prefix="/pisos", tags=["pisos"])
 class PisoCreate(BaseModel):
     direccion: Optional[str] = None
     zona: List[str]  # ALTO, OLIVOS, LAGUNA, BATÁN, SEPÚLVEDA, MANZANARES, PÍO, PUERTA, JESUITAS
+    subzonas: Optional[str] = None  # NUEVO: Campo informativo
     precio: float
     tipo_vivienda: Optional[List[str]] = None  # Piso, Casa, Chalet, Adosado, Dúplex, Ático, Estudio
     habitaciones: Optional[List[int]] = None  # 0 to 5
@@ -17,6 +18,7 @@ class PisoCreate(BaseModel):
     ascensor: Optional[str] = None  # SÍ, HASTA 1º, HASTA 2º, HASTA 3º, HASTA 4º, HASTA 5º
     bajos: Optional[str] = None
     entreplanta: Optional[str] = None
+    planta: Optional[str] = None  # NUEVO: Campo informativo
     m2: int  # 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 150
     altura: Optional[str] = None
     cercania_metro: Optional[str] = None
@@ -32,6 +34,7 @@ class PisoResponse(BaseModel):
     id: int
     direccion: Optional[str] = None
     zona: str
+    subzonas: Optional[str] = None  # NUEVO: Campo informativo
     precio: float
     tipo_vivienda: Optional[str]
     habitaciones: Optional[str]
@@ -39,6 +42,7 @@ class PisoResponse(BaseModel):
     ascensor: Optional[str]
     bajos: Optional[str]
     entreplanta: Optional[str]
+    planta: Optional[str] = None  # NUEVO: Campo informativo
     m2: int
     altura: Optional[str]
     cercania_metro: Optional[str]
@@ -66,6 +70,7 @@ def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=De
         db_piso = Piso(
             direccion=piso.direccion.strip() if piso.direccion else None,
             zona=",".join(piso.zona) if isinstance(piso.zona, list) else str(piso.zona),
+            subzonas=piso.subzonas.strip() if piso.subzonas else None,  # NUEVO: Campo informativo
             precio=float(piso.precio),
             tipo_vivienda=",".join(piso.tipo_vivienda) if piso.tipo_vivienda else None,
             habitaciones=",".join(map(str, piso.habitaciones)) if piso.habitaciones else None,
@@ -73,6 +78,7 @@ def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=De
             ascensor=piso.ascensor,
             bajos=piso.bajos,
             entreplanta=piso.entreplanta,
+            planta=piso.planta,  # NUEVO: Campo informativo
             m2=int(piso.m2),
             altura=piso.altura,
             cercania_metro=piso.cercania_metro,
