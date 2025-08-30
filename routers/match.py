@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from models import get_db, Cliente, Piso, ClienteEstadoPiso
-from utils import get_current_user
+from utils import get_current_user, require_supervisor
 
 router = APIRouter(prefix="/match", tags=["match"])
 
