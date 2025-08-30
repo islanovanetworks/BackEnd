@@ -272,15 +272,15 @@ def check_ascensor_match(piso: Piso, cliente: Cliente) -> int:
     if not piso.ascensor:
         return 0  # No info, no penalty
     
-    # Map ascensor values to floor numbers
+    # Map ascensor values to floor numbers - CORREGIDO para coincidir exactamente con FrontEnd
     ascensor_floors = {
         "SÍ": 0,
-        "HASTA 1º": 1,
-        "HASTA 2º": 2, 
-        "HASTA 3º": 3,
-        "HASTA 4º": 4,
-        "HASTA 5º": 5,
-        "NO": 999  # Very high number for no elevator
+        "Después de 1º": 1,
+        "Después de 2º": 2, 
+        "Después de 3º": 3,
+        "Después de 4º": 4,
+        "Después de 5º": 5
+        # NO se incluye "NO" porque no existe como opción en el FrontEnd
     }
     
     cliente_floor = ascensor_floors.get(cliente.ascensor, 0)
