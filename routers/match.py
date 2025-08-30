@@ -476,3 +476,107 @@ def actualizar_estado_cliente(
             estado=nuevo_estado.estado,
             fecha_actualizacion=nuevo_estado.fecha_actualizacion
         )
+
+# AGREGAR AL FINAL DEL ARCHIVO routers/match.py
+
+from fastapi.responses import StreamingResponse
+import io
+import json
+from datetime import datetime
+
+@router.get("/download-excel")
+async def download_matches_excel(db: Session = Depends(get_db), current_user = Depends(require_supervisor)):
+    """Descargar todos los matches de la compañía en formato Excel - SOLO Supervisores"""
+    try:
+        # Verificar que sea supervisor
+        if current_user.rol != "Supervisor":
+            raise HTTPException(status_code=403, detail="Solo supervisores pueden descargar reportes")
+        
+        # Obtener todos los pisos de la compañía
+        pisos = db.query(Piso).filter(Piso.compania_id == current_user.compania_id).all()
+        
+        # Obtener todos los clientes de la compañía
+        clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
+        
+        # Obtener todos los estados de cliente-piso
+        estados = db.query(ClienteEstadoPiso).filter(
+            ClienteEstadoPiso.compania_id == current_user.compania_id
+        ).all()
+        
+        # Crear diccionario para búsqueda rápida de estados
+        estados_dict = {}
+        for estado in estados:
+            key = f"{estado.cliente_id}-{estado.piso_id}"
+            estados_dict[key] = {
+                'estado': estado.estado,
+                'fecha': estado.fecha_actualizacion
+            }
+        
+        # Preparar datos para Excel
+        excel_data = []
+        
+        for piso in pisos:
+            # Calcular matches para este piso
+            piso_matches = []
+            
+            for cliente in clientes:
+                score = calculate_match_score(piso, cliente)
+                if score >= 50:  # Solo matches válidos
+                    # Buscar estado
+                    key = f"{cliente.id}-{piso.id}"
+                    estado_info = estados_dict.get(key, {'estado': 'Pendiente', 'fecha': ''})
+                    
+                    piso_matches.append({
+                        'score': score,
+                        'cliente_nombre': cliente.nombre,
+                        'cliente_telefono': cliente.telefono,
+                        'cliente_banco': cliente.banco or '',
+                        'cliente_kiron': cliente.kiron or '',
+                        'cliente_entrada': cliente.entrada,
+                        'cliente_precio': cliente.precio,
+                        'estado': estado_info['estado'],
+                        'fecha_actualizacion': estado_info['fecha']
+                    })
+            
+            # Ordenar por score descendente
+            piso_matches.sort(key=lambda x: x['score'], reverse=True)
+            
+            # Agregar fila para cada match
+            for i, match in enumerate(piso_matches):
+                row = {
+                    'Piso_Direccion': piso.direccion or f"Piso ID {piso.id}",
+                    'Piso_Zona': piso.zona,
+                    'Piso_Precio': piso.precio,
+                    'Piso_M2': piso.m2,
+                    'Piso_Habitaciones': piso.habitaciones or '',
+                    'Match_Numero': i + 1,
+                    'Compatibilidad': match['score'],
+                    'Estado': match['estado'],
+                    'Fecha_Actualizacion': match['fecha_actualizacion'],
+                    'Cliente_Nombre': match['cliente_nombre'],
+                    'Cliente_Telefono': match['cliente_telefono'],
+                    'Cliente_Banco': match['cliente_banco'],
+                    'Cliente_Kiron': match['cliente_kiron'],
+                    'Cliente_Entrada': match['cliente_entrada'],
+                    'Cliente_Precio': match['cliente_precio']
+                }
+                excel_data.append(row)
+        
+        # Crear Excel en memoria
+        if not excel_data:
+            raise HTTPException(status_code=404, detail="No hay datos de matches para exportar")
+        
+        # Preparar respuesta como JSON (el FrontEnd lo convertirá a Excel)
+        response_data = {
+            'compania_id': current_user.compania_id,
+            'fecha_generacion': datetime.now().isoformat(),
+            'total_registros': len(excel_data),
+            'datos': excel_data
+        }
+        
+        return response_data
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error generating Excel: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generando reporte: {str(e)}")
