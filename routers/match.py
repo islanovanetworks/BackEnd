@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from models import get_db, Cliente, Piso
+from typing import Optional
+from datetime import datetime
+from models import get_db, Cliente, Piso, ClienteEstadoPiso
 from utils import get_current_user
 
 router = APIRouter(prefix="/match", tags=["match"])
@@ -10,6 +12,18 @@ class MatchResponse(BaseModel):
     cliente_id: int
     piso_id: int
     score: int  # Score from 50 to 100
+    estado: str = "Pendiente"  # Nuevo campo para estado
+
+class ClienteEstadoRequest(BaseModel):
+    cliente_id: int
+    piso_id: int
+    estado: str  # Pendiente, Cita Venta Puesta, Descarta, No contesta
+
+class ClienteEstadoResponse(BaseModel):
+    cliente_id: int
+    piso_id: int
+    estado: str
+    fecha_actualizacion: str
 
 @router.get("/", response_model=list[MatchResponse])
 def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
@@ -40,7 +54,15 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
         for cliente in clientes:
             score = calculate_match_score(piso, cliente)
             if score >= 50:  # Only show matches with 50% or higher
-                matches.append(MatchResponse(cliente_id=cliente.id, piso_id=piso.id, score=score))
+                # Obtener el estado actual del cliente para este piso
+                estado_actual = db.query(ClienteEstadoPiso).filter(
+                    ClienteEstadoPiso.cliente_id == cliente.id,
+                    ClienteEstadoPiso.piso_id == piso.id,
+                    ClienteEstadoPiso.compania_id == current_user.compania_id
+                ).first()
+                
+                estado = estado_actual.estado if estado_actual else "Pendiente"
+                matches.append(MatchResponse(cliente_id=cliente.id, piso_id=piso.id, score=score, estado=estado))
     
     elif cliente_id:
         # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
@@ -64,7 +86,15 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
         for piso in pisos:
             score = calculate_match_score(piso, cliente)
             if score >= 50:  # Only show matches with 50% or higher
-                matches.append(MatchResponse(cliente_id=cliente.id, piso_id=piso.id, score=score))
+                # Obtener el estado actual del cliente para este piso
+                estado_actual = db.query(ClienteEstadoPiso).filter(
+                    ClienteEstadoPiso.cliente_id == cliente.id,
+                    ClienteEstadoPiso.piso_id == piso.id,
+                    ClienteEstadoPiso.compania_id == current_user.compania_id
+                ).first()
+                
+                estado = estado_actual.estado if estado_actual else "Pendiente"
+                matches.append(MatchResponse(cliente_id=cliente.id, piso_id=piso.id, score=score, estado=estado))
     
     # Sort by score (highest first)
     matches.sort(key=lambda x: x.score, reverse=True)
@@ -377,3 +407,72 @@ def check_patio_match(piso: Piso, cliente: Cliente) -> int:
     if cliente.patio == "SÍ" and piso.patio == "NO":
         return 5
     return 0
+
+@router.put("/estado", response_model=ClienteEstadoResponse)
+def actualizar_estado_cliente(
+    request: ClienteEstadoRequest, 
+    db: Session = Depends(get_db), 
+    current_user = Depends(get_current_user)
+):
+    """Actualizar el estado de un cliente para un piso específico"""
+    
+    # Verificar que el cliente y piso pertenecen a la compañía
+    cliente = db.query(Cliente).filter(
+        Cliente.id == request.cliente_id,
+        Cliente.compania_id == current_user.compania_id
+    ).first()
+    
+    piso = db.query(Piso).filter(
+        Piso.id == request.piso_id,
+        Piso.compania_id == current_user.compania_id
+    ).first()
+    
+    if not cliente or not piso:
+        raise HTTPException(status_code=404, detail="Cliente o Piso no encontrado")
+    
+    # Si es Asesor, verificar que el cliente le pertenece
+    if current_user.rol == "Asesor" and cliente.asesor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permisos para este cliente")
+    
+    # Buscar registro existente
+    estado_existente = db.query(ClienteEstadoPiso).filter(
+        ClienteEstadoPiso.cliente_id == request.cliente_id,
+        ClienteEstadoPiso.piso_id == request.piso_id,
+        ClienteEstadoPiso.compania_id == current_user.compania_id
+    ).first()
+    
+    fecha_actual = datetime.now().isoformat()
+    
+    if estado_existente:
+        # Actualizar registro existente
+        estado_existente.estado = request.estado
+        estado_existente.fecha_actualizacion = fecha_actual
+        db.commit()
+        db.refresh(estado_existente)
+        
+        return ClienteEstadoResponse(
+            cliente_id=estado_existente.cliente_id,
+            piso_id=estado_existente.piso_id,
+            estado=estado_existente.estado,
+            fecha_actualizacion=estado_existente.fecha_actualizacion
+        )
+    else:
+        # Crear nuevo registro
+        nuevo_estado = ClienteEstadoPiso(
+            cliente_id=request.cliente_id,
+            piso_id=request.piso_id,
+            compania_id=current_user.compania_id,
+            estado=request.estado,
+            fecha_actualizacion=fecha_actual
+        )
+        
+        db.add(nuevo_estado)
+        db.commit()
+        db.refresh(nuevo_estado)
+        
+        return ClienteEstadoResponse(
+            cliente_id=nuevo_estado.cliente_id,
+            piso_id=nuevo_estado.piso_id,
+            estado=nuevo_estado.estado,
+            fecha_actualizacion=nuevo_estado.fecha_actualizacion
+        )
