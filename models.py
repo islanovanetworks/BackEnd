@@ -82,6 +82,20 @@ class Piso(Base):
     compania_id = Column(Integer, ForeignKey("companias.id"))
     compania = relationship("Compania", back_populates="pisos")
 
+class ClienteEstadoPiso(Base):
+    __tablename__ = "cliente_estado_pisos"
+    id = Column(Integer, primary_key=True, index=True)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"))
+    piso_id = Column(Integer, ForeignKey("pisos.id"))
+    compania_id = Column(Integer, ForeignKey("companias.id"))  # Para filtrar por compañía
+    estado = Column(String, default="Pendiente")  # Pendiente, Cita Venta Puesta, Descarta, No contesta
+    fecha_actualizacion = Column(String)  # Para tracking
+    
+    # Relationships
+    cliente = relationship("Cliente")
+    piso = relationship("Piso")
+    compania = relationship("Compania")
+
 def create_db_and_tables():
     # ✅ FORZAR RECREACIÓN DE TABLAS
     print("🔄 Recreating database tables...")
