@@ -96,12 +96,76 @@ class ClienteEstadoPiso(Base):
     piso = relationship("Piso")
     compania = relationship("Compania")
 
+import os
+
 def create_db_and_tables():
-    # ✅ FORZAR RECREACIÓN DE TABLAS
-    print("🔄 Recreating database tables...")
-    Base.metadata.drop_all(bind=engine)  # Eliminar tablas existentes
-    Base.metadata.create_all(bind=engine)  # Recrear todas las tablas
-    print("✅ Database tables recreated successfully!")
+    """
+    🛡️ MODO PRODUCCIÓN SEGURO
+    - SOLO crea tablas si no existen
+    - NUNCA borra datos existentes
+    - Protección contra pérdida de datos
+    """
+    # 🔒 PROTECCIÓN ABSOLUTA - Verificar variable de entorno
+    ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
+    
+    if ENVIRONMENT == "production":
+        print("🛡️ PRODUCTION MODE: Creating tables safely (no data loss)")
+        Base.metadata.create_all(bind=engine)  # SOLO crear, NUNCA borrar
+        print("✅ Database tables verified safely!")
+    else:
+        print("⚠️ DEVELOPMENT MODE detected - still creating safely")
+        Base.metadata.create_all(bind=engine)  # SIEMPRE seguro
+        print("✅ Development database ready!")
+
+def emergency_reset_database():
+    """
+    🚨 FUNCIÓN DE EMERGENCIA - REQUIERE CONFIRMACIÓN MANUAL
+    Esta función SOLO debe usarse en desarrollo local
+    REQUIERE variable de entorno específica para ejecutarse
+    """
+    ALLOW_RESET = os.getenv("ALLOW_DATABASE_RESET", "false")
+    ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
+    
+    if ENVIRONMENT == "production":
+        print("🚫 RESET BLOCKED: Cannot reset database in production")
+        print("🛡️ Production data is protected")
+        return False
+    
+    if ALLOW_RESET.lower() != "true":
+        print("🚫 RESET BLOCKED: ALLOW_DATABASE_RESET not set to 'true'")
+        print("🛡️ Database reset requires explicit permission")
+        return False
+    
+    print("🚨 WARNING: Resetting database in 5 seconds...")
+    print("🚨 ALL DATA WILL BE LOST!")
+    import time
+    time.sleep(5)
+    
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database reset complete!")
+    return True
+
+# 📊 FUNCIÓN DE BACKUP OPCIONAL
+def create_backup_info():
+    """Crear información de backup sin exportar datos sensibles"""
+    try:
+        db = SessionLocal()
+        backup_info = {
+            'timestamp': datetime.now().isoformat(),
+            'companias_count': db.query(Compania).count(),
+            'usuarios_count': db.query(Usuario).count(),
+            'clientes_count': db.query(Cliente).count(),
+            'pisos_count': db.query(Piso).count(),
+            'status': 'healthy'
+        }
+        print(f"📊 Database status: {backup_info}")
+        return backup_info
+    except Exception as e:
+        print(f"❌ Backup info error: {e}")
+        return {'status': 'error', 'message': str(e)}
+    finally:
+        db.close()
 
 def get_db():
     db = SessionLocal()
