@@ -1,0 +1,94 @@
+# ================================
+# SECRETS Y CONFIGURACIÓN SENSIBLE
+# ================================
+.env
+.env.local
+.env.production
+.env.development
+config.ini
+secrets.json
+settings.local.py
+local_settings.py
+
+# ================================
+# BASE DE DATOS
+# ================================
+*.db
+*.sqlite
+*.sqlite3
+database.db
+test.db
+app.db
+
+# ================================
+# LOGS Y DEBUGGING
+# ================================
+*.log
+logs/
+debug.log
+error.log
+access.log
+
+# ================================
+# PYTHON ESPECÍFICO
+# ================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ================================
+# TESTING Y COVERAGE
+# ================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# ================================
+# ENTORNOS VIRTUALES
+# ================================
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# ================================
+# IDEs Y EDITORES
+# ================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ================================
+# RENDER Y DEPLOYMENT
+# ================================
+.render/
+deployment.log
