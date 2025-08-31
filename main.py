@@ -94,6 +94,16 @@ async def root():
         "health": "/health"
     }
 
+# 🔍 Debug endpoint para verificar variables de entorno
+@app.get("/debug/environment")
+async def debug_environment():
+    return {
+        "environment": os.getenv("ENVIRONMENT", "not_set"),
+        "allow_reset": os.getenv("ALLOW_DATABASE_RESET", "not_set"),
+        "database_url_set": bool(os.getenv("DATABASE_URL")),
+        "secret_key_set": bool(os.getenv("SECRET_KEY"))
+    }
+
 # ✅ Render-compatible port configuration
 if __name__ == "__main__":
     import uvicorn
