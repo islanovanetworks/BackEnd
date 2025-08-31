@@ -16,7 +16,9 @@ app = FastAPI(
 # ❌ CANNOT use allow_origins=["*"] with allow_credentials=True
 # ✅ MUST specify exact origins when using credentials
 origins = [
-    "https://front-end-ygjn.vercel.app",  # Your Vercel frontend
+    "https://matchingprops.com",          # NEW: Production domain
+    "https://www.matchingprops.com",      # NEW: WWW subdomain
+    "https://front-end-ygjn.vercel.app",  # KEEP: Old Vercel domain (for transition)
     "http://localhost:3000",              # Local development
     "http://localhost:8080",              # Alternative local port
     "http://127.0.0.1:3000",             # Local IP
