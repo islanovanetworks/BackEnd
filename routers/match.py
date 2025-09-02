@@ -108,8 +108,10 @@ def calculate_match_score(piso: Piso, cliente: Cliente) -> int:
         # PARÁMETROS IMPORTANTES (10% penalty each)
         
         # 1. Zona: At least one zone must match
+        # 1. Zona: At least one zone must match - CRÍTICO
         if not check_zona_match(piso, cliente):
-            score -= 10
+            print(f"DEBUG: Cliente {cliente.id} y Piso {piso.id} NO tienen zonas compatibles - EXCLUYENDO")
+            return 0  # EXCLUIR DIRECTAMENTE si no hay match de zona
         
         # 2. Habitaciones: Piso habitaciones >= Cliente habitaciones
         habitaciones_penalty = check_habitaciones_match(piso, cliente)
@@ -181,8 +183,18 @@ def calculate_match_score(piso: Piso, cliente: Cliente) -> int:
 
 def check_zona_match(piso: Piso, cliente: Cliente) -> bool:
     """Check if at least one zone matches."""
-    cliente_zonas = set(cliente.zona.split(",") if cliente.zona else [])
-    piso_zonas = set(piso.zona.split(",") if piso.zona else [])
+    if not cliente.zona or not piso.zona:
+        return False  # Si alguno no tiene zona, no hay match
+    
+    # Limpiar espacios en blanco y convertir a mayúsculas para comparación consistente
+    cliente_zonas = set(zona.strip().upper() for zona in cliente.zona.split(",") if zona.strip())
+    piso_zonas = set(zona.strip().upper() for zona in piso.zona.split(",") if zona.strip())
+    
+    # Debug: imprimir zonas para verificación
+    print(f"DEBUG ZONA - Cliente {cliente.id}: {cliente_zonas}")
+    print(f"DEBUG ZONA - Piso {piso.id}: {piso_zonas}")
+    print(f"DEBUG ZONA - Match: {bool(cliente_zonas.intersection(piso_zonas))}")
+    
     return bool(cliente_zonas.intersection(piso_zonas))
 
 def check_habitaciones_match(piso: Piso, cliente: Cliente) -> int:
