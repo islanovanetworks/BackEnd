@@ -13,6 +13,8 @@ class MatchResponse(BaseModel):
     piso_id: int
     score: int  # Score from 50 to 100
     estado: str = "Pendiente"  # Nuevo campo para estado
+    # ✅ NUEVOS CAMPOS - RETROCOMPATIBLES (opcionales)
+    penalizaciones: dict = {}  # Información de penalizaciones por parámetro
 
 class ClienteEstadoRequest(BaseModel):
     cliente_id: int
@@ -52,7 +54,7 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
             clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
         
         for cliente in clientes:
-            score = calculate_match_score(piso, cliente)
+            score, penalizaciones = calculate_match_score_with_details(piso, cliente)  # ✅ NUEVO
             if score >= 50:  # Only show matches with 50% or higher
                 # Obtener el estado actual del cliente para este piso
                 estado_actual = db.query(ClienteEstadoPiso).filter(
@@ -62,7 +64,13 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
                 ).first()
                 
                 estado = estado_actual.estado if estado_actual else "Pendiente"
-                matches.append(MatchResponse(cliente_id=cliente.id, piso_id=piso.id, score=score, estado=estado))
+                matches.append(MatchResponse(
+                    cliente_id=cliente.id, 
+                    piso_id=piso.id, 
+                    score=score, 
+                    estado=estado,
+                    penalizaciones=penalizaciones  # ✅ NUEVO CAMPO
+                ))
     
     elif cliente_id:
         # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
@@ -84,7 +92,7 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
         # Todos los usuarios pueden ver todos los pisos de su compañía
         pisos = db.query(Piso).filter(Piso.compania_id == current_user.compania_id).all()
         for piso in pisos:
-            score = calculate_match_score(piso, cliente)
+            score, penalizaciones = calculate_match_score_with_details(piso, cliente)  # ✅ NUEVO
             if score >= 50:  # Only show matches with 50% or higher
                 # Obtener el estado actual del cliente para este piso
                 estado_actual = db.query(ClienteEstadoPiso).filter(
@@ -94,92 +102,123 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
                 ).first()
                 
                 estado = estado_actual.estado if estado_actual else "Pendiente"
-                matches.append(MatchResponse(cliente_id=cliente.id, piso_id=piso.id, score=score, estado=estado))
+                matches.append(MatchResponse(
+                    cliente_id=cliente.id, 
+                    piso_id=piso.id, 
+                    score=score, 
+                    estado=estado,
+                    penalizaciones=penalizaciones  # ✅ NUEVO CAMPO
+                ))
     
     # Sort by score (highest first)
     matches.sort(key=lambda x: x.score, reverse=True)
     return matches
 
-def calculate_match_score(piso: Piso, cliente: Cliente) -> int:
-    """Calculate match score based on penalty system (starts at 100%, penalties reduce score)."""
+def calculate_match_score_with_details(piso: Piso, cliente: Cliente) -> tuple[int, dict]:
+    """Calculate match score WITH detailed penalty information for visual highlighting."""
     try:
         score = 100  # Start with 100%
+        penalizaciones = {}  # ✅ NUEVO: Tracking de penalizaciones
         
         # PARÁMETROS IMPORTANTES (10% penalty each)
         
-        # 1. Zona: At least one zone must match
         # 1. Zona: At least one zone must match - CRÍTICO
         if not check_zona_match(piso, cliente):
-            print(f"DEBUG: Cliente {cliente.id} y Piso {piso.id} NO tienen zonas compatibles - EXCLUYENDO")
-            return 0  # EXCLUIR DIRECTAMENTE si no hay match de zona
+            return 0, {}  # EXCLUIR DIRECTAMENTE si no hay match de zona
         
         # 2. Habitaciones: Piso habitaciones >= Cliente habitaciones
         habitaciones_penalty = check_habitaciones_match(piso, cliente)
         if habitaciones_penalty > 0:
-            score -= 10  # Exclude if no match
-            return 0  # Exclude directly
+            return 0, {}  # Exclude directly
         
         # 3. Estado: At least one value must match
         if not check_estado_match(piso, cliente):
             score -= 10
+            penalizaciones['estado'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
         
         # 4. Tipo de Vivienda: At least one value must match
         if not check_tipo_vivienda_match(piso, cliente):
             score -= 10
+            penalizaciones['tipo_vivienda'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
         
         # 5. Bajos: Exact match required
         if not check_bajos_match(piso, cliente):
             score -= 10
+            penalizaciones['bajos'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
         
         # 6. Entreplantas: Exact match required
         if not check_entreplanta_match(piso, cliente):
             score -= 10
+            penalizaciones['entreplanta'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
         
         # PARÁMETROS MEDIOS (5% penalty each)
         
         # 1. Precio: Complex penalty system
         precio_penalty = check_precio_match(piso, cliente)
         if precio_penalty == -1:  # Exclude directly
-            return 0
-        score -= precio_penalty
+            return 0, {}
+        if precio_penalty > 0:
+            score -= precio_penalty
+            color = 'red' if precio_penalty >= 10 else 'yellow'
+            penalizaciones['precio'] = {'penalty': precio_penalty, 'color': color}  # ✅ NUEVO
         
         # 2. Metros Cuadrados: Complex penalty system  
         m2_penalty = check_m2_match(piso, cliente)
         if m2_penalty == -1:  # Exclude directly
-            return 0
-        score -= m2_penalty
+            return 0, {}
+        if m2_penalty > 0:
+            score -= m2_penalty
+            color = 'red' if m2_penalty >= 10 else 'yellow'
+            penalizaciones['m2'] = {'penalty': m2_penalty, 'color': color}  # ✅ NUEVO
         
         # 3. Ascensor: Complex penalty system
         ascensor_penalty = check_ascensor_match(piso, cliente)
         if ascensor_penalty == -1:  # Exclude directly
-            return 0
-        score -= ascensor_penalty
+            return 0, {}
+        if ascensor_penalty > 0:
+            score -= ascensor_penalty
+            color = 'red' if ascensor_penalty >= 10 else 'yellow'
+            penalizaciones['ascensor'] = {'penalty': ascensor_penalty, 'color': color}  # ✅ NUEVO
         
         # 4. Cercanía Metro: Complex penalty system
         metro_penalty = check_cercania_metro_match(piso, cliente)
-        score -= metro_penalty
+        if metro_penalty > 0:
+            score -= metro_penalty
+            color = 'red' if metro_penalty >= 10 else 'yellow'
+            penalizaciones['cercania_metro'] = {'penalty': metro_penalty, 'color': color}  # ✅ NUEVO
         
         # 5. Altura: 5% penalty if different
         if not check_altura_match(piso, cliente):
             score -= 5
+            penalizaciones['altura'] = {'penalty': 5, 'color': 'yellow'}  # ✅ NUEVO
         
         # 6. Interior: 5% penalty if different
         if not check_interior_match(piso, cliente):
             score -= 5
+            penalizaciones['interior'] = {'penalty': 5, 'color': 'yellow'}  # ✅ NUEVO
         
         # 7. Balcón/Terraza: 5% penalty if client wants and piso doesn't have
         balcon_penalty = check_balcon_terraza_match(piso, cliente)
-        score -= balcon_penalty
+        if balcon_penalty > 0:
+            score -= balcon_penalty
+            penalizaciones['balcon_terraza'] = {'penalty': balcon_penalty, 'color': 'yellow'}  # ✅ NUEVO
         
         # 8. Patio: 5% penalty if client wants and piso doesn't have
         patio_penalty = check_patio_match(piso, cliente)
-        score -= patio_penalty
+        if patio_penalty > 0:
+            score -= patio_penalty
+            penalizaciones['patio'] = {'penalty': patio_penalty, 'color': 'yellow'}  # ✅ NUEVO
         
-        return max(score, 0)  # Ensure score doesn't go below 0
+        return max(score, 0), penalizaciones  # ✅ NUEVO: Retornar ambos valores
         
     except Exception as e:
         print(f"Error in scoring: {str(e)}")
-        return 0
+        return 0, {}
+
+def calculate_match_score(piso: Piso, cliente: Cliente) -> int:
+    """Mantener función original para retrocompatibilidad total."""
+    score, _ = calculate_match_score_with_details(piso, cliente)
+    return score
 
 def check_zona_match(piso: Piso, cliente: Cliente) -> bool:
     """Check if at least one zone matches."""
