@@ -15,15 +15,32 @@ app = FastAPI(
 # ✅ CORS Configuration - CORRECTED
 # ❌ CANNOT use allow_origins=["*"] with allow_credentials=True
 # ✅ MUST specify exact origins when using credentials
-origins = [
-    "https://matchingprops.com",          # NEW: Production domain
-    "https://www.matchingprops.com",      # NEW: WWW subdomain
-    "https://front-end-ygjn.vercel.app",  # KEEP: Old Vercel domain (for transition)
-    "http://localhost:3000",              # Local development
-    "http://localhost:8080",              # Alternative local port
-    "http://127.0.0.1:3000",             # Local IP
-    "http://127.0.0.1:8080"              # Alternative local IP
-]
+# ✅ CORS Configuration - Multi-environment support
+
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
+
+if ENVIRONMENT == "test":
+    origins = [
+        "https://front-end-test-flame.vercel.app",      # ← URL de tu frontend test
+        "http://localhost:3000",                        
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080"
+    ]
+    print("🧪 Running in TEST environment")
+else:
+    # Producción (mantener URLs actuales)
+    origins = [
+        "https://matchingprops.com",                    # ← Tus URLs de producción actuales
+        "https://www.matchingprops.com",
+        "https://front-end-ygjn.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080"
+    ]
+    print("🚀 Running in PRODUCTION environment")
 
 app.add_middleware(
     CORSMiddleware,
