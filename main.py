@@ -22,8 +22,8 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
 if ENVIRONMENT == "test":
     origins = [
-        "https://front-end-test-flame.vercel.app",      # ← URL de tu frontend test
-        "http://localhost:3000",                        
+        "https://front-end-test-git-develop-julians-projects-1b5ab696.vercel.app",  # ← URL CORRECTA
+        "http://localhost:3000",
         "http://localhost:8080",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8080"
