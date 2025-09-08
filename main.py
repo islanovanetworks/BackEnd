@@ -43,24 +43,14 @@ else:
     print("🚀 Running in PRODUCTION environment")
 
 # ✅ CORS MEJORADO - CONFIGURACIÓN MÁS PERMISIVA PARA PRODUCCIÓN
+# ✅ CORS TEMPORAL - MUY PERMISIVO PARA RESOLVER PROBLEMA INMEDIATO
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],  # ✅ Más métodos
-    allow_headers=[
-        "Accept",
-        "Accept-Language", 
-        "Content-Language",
-        "Content-Type",
-        "Authorization",
-        "X-Requested-With",
-        "Access-Control-Allow-Origin",
-        "Access-Control-Allow-Headers",
-        "Access-Control-Allow-Methods"
-    ],  # ✅ Headers específicos
-    expose_headers=["*"],
-    max_age=600  # ✅ Cache preflight por 10 minutos
+    allow_origins=["*"],  # ✅ TEMPORAL: Permitir todos los orígenes
+    allow_credentials=False,  # ✅ OBLIGATORIO cuando allow_origins=["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+    allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # ✅ Add error handling middleware
