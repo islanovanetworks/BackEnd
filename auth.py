@@ -14,7 +14,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-SECRET_KEY = os.getenv("SECRET_KEY", "4a8b3f9c2e7d1a5b9c8e3f7a1b2d4e6f8c9a2b3d4e5f6a7b8c9d0e1f2a3b4c5")
+def get_secret_key():
+    service_name = os.getenv("RENDER_SERVICE_NAME", "")
+    external_url = os.getenv("RENDER_EXTERNAL_URL", "")
+    
+    if "test" in service_name.lower() or "test" in external_url.lower():
+        return "TEST_4a8b3f9c2e7d1a5b9c8e3f7a1b2d4e6f8c9a2b3d4e5f6a7b8c9d0e1f2a3b4c5"
+    
+    return os.getenv("SECRET_KEY", "4a8b3f9c2e7d1a5b9c8e3f7a1b2d4e6f8c9a2b3d4e5f6a7b8c9d0e1f2a3b4c5")
+
+SECRET_KEY = get_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

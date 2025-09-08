@@ -295,3 +295,20 @@ def update_cliente(
     db.commit()
     db.refresh(cliente)
     return ClienteResponse.from_orm_with_asesor(cliente)
+
+@router.get("/all", response_model=list[ClienteResponse])
+def read_all_clientes(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """Obtener todos los clientes para gestión - Solo Supervisores ven todos, Asesores solo sus clientes"""
+    
+    if current_user.rol == "Asesor":
+        # Asesor ve solo sus clientes
+        clientes = db.query(Cliente).filter(
+            Cliente.compania_id == current_user.compania_id,
+            Cliente.asesor_id == current_user.id
+        ).all()
+    else:  # Supervisor
+        # Supervisor ve todos los clientes de la compañía
+        clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
+    
+    # Usar el método personalizado para crear las respuestas
+    return [ClienteResponse.from_orm_with_asesor(cliente) for cliente in clientes]
