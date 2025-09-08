@@ -22,7 +22,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
 if ENVIRONMENT == "test":
     origins = [
-        "https://front-end-test-git-develop-julians-projects-1b5ab696.vercel.app",  # ← URL CORRECTA
+        "https://front-end-test-git-develop-julians-projects-1b5ab696.vercel.app",
         "http://localhost:3000",
         "http://localhost:8080",
         "http://127.0.0.1:3000",
@@ -30,9 +30,9 @@ if ENVIRONMENT == "test":
     ]
     print("🧪 Running in TEST environment")
 else:
-    # Producción (mantener URLs actuales)
+    # Producción - CORS COMPLETO
     origins = [
-        "https://matchingprops.com",                    # ← Tus URLs de producción actuales
+        "https://matchingprops.com",
         "https://www.matchingprops.com",
         "https://front-end-ygjn.vercel.app",
         "http://localhost:3000",
@@ -42,13 +42,25 @@ else:
     ]
     print("🚀 Running in PRODUCTION environment")
 
+# ✅ CORS MEJORADO - CONFIGURACIÓN MÁS PERMISIVA PARA PRODUCCIÓN
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],  # ✅ Más métodos
+    allow_headers=[
+        "Accept",
+        "Accept-Language", 
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Access-Control-Allow-Origin",
+        "Access-Control-Allow-Headers",
+        "Access-Control-Allow-Methods"
+    ],  # ✅ Headers específicos
+    expose_headers=["*"],
+    max_age=600  # ✅ Cache preflight por 10 minutos
 )
 
 # ✅ Add error handling middleware
