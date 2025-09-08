@@ -101,6 +101,11 @@ async def test_cors():
         "status": "working",
         "origins": origins
     }
+    
+# ✅ HANDLER EXPLÍCITO PARA PREFLIGHT
+@app.options("/{path:path}")
+async def handle_options(path: str):
+    return {"message": "OK"}
 
 # Include all routers
 app.include_router(auth.router)
