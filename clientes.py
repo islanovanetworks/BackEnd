@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
-from models import get_db, Cliente
+from models import get_db, Cliente, Usuario
 from utils import get_current_user
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
@@ -130,7 +130,6 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
     # Si es Supervisor y especifica asesor_id, validar que el asesor existe y pertenece a la compañía
     # Si es Supervisor y especifica asesor_id, validar que el asesor existe y pertenece a la compañía
     elif current_user.rol == "Supervisor" and asesor_id:
-        from models import Usuario  # Asegurar import
         asesor_target = db.query(Usuario).filter(
             Usuario.id == asesor_id, 
             Usuario.compania_id == current_user.compania_id
