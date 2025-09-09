@@ -42,33 +42,28 @@ else:
     ]
     print("🚀 Running in PRODUCTION environment")
 
-# ✅ CORS MEJORADO - CONFIGURACIÓN MÁS PERMISIVA PARA PRODUCCIÓN
-# ✅ CORS CONFIGURACIÓN ESPECÍFICA PARA PRODUCCIÓN - SOLUCIONA ERRORES DELETE
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://matchingprops.com",
-        "https://www.matchingprops.com", 
-        "https://front-end-ygjn.vercel.app",
-        "https://front-end-test-git-develop-julians-projects-1b5ab696.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:8080",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8080"
-    ],  # ✅ ESPECÍFICO: Orígenes exactos para permitir credentials
-    allow_credentials=True,  # ✅ HABILITADO: Necesario para requests autenticados
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
-    allow_headers=[
-        "Authorization", 
-        "Content-Type", 
-        "Accept", 
-        "Origin", 
-        "X-Requested-With",
-        "Access-Control-Request-Method",
-        "Access-Control-Request-Headers"
-    ],
+    allow_origins=["*"],  # ✅ TEMPORAL: Máxima permisividad
+    allow_credentials=False,  # ✅ OBLIGATORIO con allow_origins=["*"]
+    allow_methods=["*"],  # ✅ TODOS los métodos
+    allow_headers=["*"],  # ✅ TODAS las cabeceras
     expose_headers=["*"]
 )
+
+# ✅ MIDDLEWARE ADICIONAL PARA FORZAR CORS EN ERRORES 500
+@app.middleware("http")
+async def add_cors_headers(request, call_next):
+    response = await call_next(request)
+    
+    # ✅ FORZAR CORS HEADERS SIEMPRE (incluso en errores)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Expose-Headers"] = "*"
+    
+    return response
 
 # ✅ Add error handling middleware
 from fastapi.responses import JSONResponse  # AGREGAR ESTE IMPORT AL INICIO
