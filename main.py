@@ -71,14 +71,31 @@ from fastapi.responses import JSONResponse  # AGREGAR ESTE IMPORT AL INICIO
 @app.middleware("http")
 async def catch_exceptions_middleware(request, call_next):
     try:
-        return await call_next(request)
+        response = await call_next(request)
+        
+        # ✅ ASEGURAR CORS EN TODAS LAS RESPUESTAS
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        
+        return response
+        
     except Exception as e:
         import logging
         logging.error(f"Unhandled exception: {str(e)}")
-        return JSONResponse(
+        
+        # ✅ RESPONSE CON CORS HEADERS INCLUIDOS
+        response = JSONResponse(
             status_code=500,
             content={"detail": f"Internal server error: {str(e)}"}
         )
+        
+        # ✅ FORZAR CORS EN ERRORES 500
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        
+        return response
 
 # ❌ REMOVED CustomCORSMiddleware - it was conflicting with CORSMiddleware
 # ✅ Standard CORSMiddleware is sufficient and more reliable
