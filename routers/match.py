@@ -47,7 +47,7 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
         if current_user.rol == "Asesor":
             # Asesor solo ve sus clientes
             clientes = db.query(Cliente).options(
-                db.joinedload(Cliente.asesor_asignado)
+                joinedload(Cliente.asesor_asignado)
             ).filter(
                 Cliente.compania_id == current_user.compania_id,
                 Cliente.asesor_id == current_user.id
@@ -55,7 +55,7 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
         else:
             # Supervisor ve todos los clientes de la compañía
             clientes = db.query(Cliente).options(
-                db.joinedload(Cliente.asesor_asignado)
+                joinedload(Cliente.asesor_asignado)
             ).filter(Cliente.compania_id == current_user.compania_id).all()
         
         for cliente in clientes:
@@ -82,7 +82,7 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
         # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
         if current_user.rol == "Asesor":
             cliente = db.query(Cliente).options(
-                db.joinedload(Cliente.asesor_asignado)
+                joinedload(Cliente.asesor_asignado)
             ).filter(
                 Cliente.id == cliente_id, 
                 Cliente.compania_id == current_user.compania_id,
@@ -90,7 +90,7 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
             ).first()
         else:
             cliente = db.query(Cliente).options(
-                db.joinedload(Cliente.asesor_asignado)
+                joinedload(Cliente.asesor_asignado)
             ).filter(
                 Cliente.id == cliente_id, 
                 Cliente.compania_id == current_user.compania_id
