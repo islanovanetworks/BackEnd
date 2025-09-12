@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from models import get_db, Cliente, Piso, ClienteEstadoPiso
+from models import get_db, Cliente, Piso, ClienteEstadoPiso, Usuario
 from utils import get_current_user, require_supervisor
 
 router = APIRouter(prefix="/match", tags=["match"])
@@ -43,15 +43,20 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
             raise HTTPException(status_code=404, detail="Piso no encontrado")
         
         # Obtener clientes según el rol del usuario
+        # Obtener clientes según el rol del usuario con información del asesor
         if current_user.rol == "Asesor":
             # Asesor solo ve sus clientes
-            clientes = db.query(Cliente).filter(
+            clientes = db.query(Cliente).options(
+                db.joinedload(Cliente.asesor_asignado)
+            ).filter(
                 Cliente.compania_id == current_user.compania_id,
                 Cliente.asesor_id == current_user.id
             ).all()
         else:
             # Supervisor ve todos los clientes de la compañía
-            clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
+            clientes = db.query(Cliente).options(
+                db.joinedload(Cliente.asesor_asignado)
+            ).filter(Cliente.compania_id == current_user.compania_id).all()
         
         for cliente in clientes:
             score, penalizaciones = calculate_match_score_with_details(piso, cliente)  # ✅ NUEVO
@@ -74,14 +79,19 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
     
     elif cliente_id:
         # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
+        # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
         if current_user.rol == "Asesor":
-            cliente = db.query(Cliente).filter(
+            cliente = db.query(Cliente).options(
+                db.joinedload(Cliente.asesor_asignado)
+            ).filter(
                 Cliente.id == cliente_id, 
                 Cliente.compania_id == current_user.compania_id,
                 Cliente.asesor_id == current_user.id
             ).first()
         else:
-            cliente = db.query(Cliente).filter(
+            cliente = db.query(Cliente).options(
+                db.joinedload(Cliente.asesor_asignado)
+            ).filter(
                 Cliente.id == cliente_id, 
                 Cliente.compania_id == current_user.compania_id
             ).first()
