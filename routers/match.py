@@ -137,9 +137,11 @@ def calculate_match_score_with_details(piso: Piso, cliente: Cliente) -> tuple[in
             return 0, {}  # EXCLUIR DIRECTAMENTE si no hay match de zona
         
         # 2. Habitaciones: Piso habitaciones >= Cliente habitaciones
+        # 2. Habitaciones: Piso habitaciones >= Cliente habitaciones (10% penalty)
         habitaciones_penalty = check_habitaciones_match(piso, cliente)
         if habitaciones_penalty > 0:
-            return 0, {}  # Exclude directly
+            score -= 10
+            penalizaciones['habitaciones'] = {'penalty': 10, 'color': 'red'}
         
         # 3. Estado: At least one value must match
         if not check_estado_match(piso, cliente):
@@ -248,7 +250,7 @@ def check_zona_match(piso: Piso, cliente: Cliente) -> bool:
     return bool(cliente_zonas.intersection(piso_zonas))
 
 def check_habitaciones_match(piso: Piso, cliente: Cliente) -> int:
-    """Check habitaciones match. Returns penalty (0 = match, >0 = penalty)."""
+    """Check habitaciones match. Returns penalty (0 = match, 10 = penalty)."""
     if not cliente.habitaciones:
         return 0  # No preference
     
@@ -257,11 +259,11 @@ def check_habitaciones_match(piso: Piso, cliente: Cliente) -> int:
         return 0
     
     if not piso.habitaciones:
-        return 1  # Exclude if piso doesn't specify
+        return 10  # 10% penalty if piso doesn't specify
     
     piso_habitaciones = [int(x) for x in piso.habitaciones.split(",") if x.strip()]
     if not piso_habitaciones:
-        return 1
+        return 10
     
     # Check if piso has at least the minimum required by cliente
     min_cliente = min(cliente_habitaciones)
@@ -270,7 +272,7 @@ def check_habitaciones_match(piso: Piso, cliente: Cliente) -> int:
     if max_piso >= min_cliente:
         return 0  # Match
     else:
-        return 1  # Exclude
+        return 10  # 10% penalty instead of exclude
 
 def check_estado_match(piso: Piso, cliente: Cliente) -> bool:
     """Check if at least one estado value matches."""
