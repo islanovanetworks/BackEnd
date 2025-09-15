@@ -22,7 +22,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
 if ENVIRONMENT == "test":
     origins = [
-        "https://front-end-test-git-develop-julians-projects-1b5ab696.vercel.app",  # ← URL CORRECTA
+        "https://front-end-test-git-develop-julians-projects-1b5ab696.vercel.app",
         "http://localhost:3000",
         "http://localhost:8080",
         "http://127.0.0.1:3000",
@@ -30,9 +30,9 @@ if ENVIRONMENT == "test":
     ]
     print("🧪 Running in TEST environment")
 else:
-    # Producción (mantener URLs actuales)
+    # Producción - CORS COMPLETO
     origins = [
-        "https://matchingprops.com",                    # ← Tus URLs de producción actuales
+        "https://matchingprops.com",
         "https://www.matchingprops.com",
         "https://front-end-ygjn.vercel.app",
         "http://localhost:3000",
@@ -42,14 +42,28 @@ else:
     ]
     print("🚀 Running in PRODUCTION environment")
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # ✅ TEMPORAL: Máxima permisividad
+    allow_credentials=False,  # ✅ OBLIGATORIO con allow_origins=["*"]
+    allow_methods=["*"],  # ✅ TODOS los métodos
+    allow_headers=["*"],  # ✅ TODAS las cabeceras
     expose_headers=["*"]
 )
+
+# ✅ MIDDLEWARE ADICIONAL PARA FORZAR CORS EN ERRORES 500
+@app.middleware("http")
+async def add_cors_headers(request, call_next):
+    response = await call_next(request)
+    
+    # ✅ FORZAR CORS HEADERS SIEMPRE (incluso en errores)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Expose-Headers"] = "*"
+    
+    return response
 
 # ✅ Add error handling middleware
 from fastapi.responses import JSONResponse  # AGREGAR ESTE IMPORT AL INICIO
@@ -57,14 +71,31 @@ from fastapi.responses import JSONResponse  # AGREGAR ESTE IMPORT AL INICIO
 @app.middleware("http")
 async def catch_exceptions_middleware(request, call_next):
     try:
-        return await call_next(request)
+        response = await call_next(request)
+        
+        # ✅ ASEGURAR CORS EN TODAS LAS RESPUESTAS
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        
+        return response
+        
     except Exception as e:
         import logging
         logging.error(f"Unhandled exception: {str(e)}")
-        return JSONResponse(
+        
+        # ✅ RESPONSE CON CORS HEADERS INCLUIDOS
+        response = JSONResponse(
             status_code=500,
             content={"detail": f"Internal server error: {str(e)}"}
         )
+        
+        # ✅ FORZAR CORS EN ERRORES 500
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        
+        return response
 
 # ❌ REMOVED CustomCORSMiddleware - it was conflicting with CORSMiddleware
 # ✅ Standard CORSMiddleware is sufficient and more reliable
@@ -89,6 +120,17 @@ async def test_cors():
         "status": "working",
         "origins": origins
     }
+    
+# ✅ HANDLER EXPLÍCITO PARA PREFLIGHT - MEJORADO
+@app.options("/{path:path}")
+async def handle_options(path: str):
+    from fastapi import Response
+    response = Response()
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With"
+    response.headers["Access-Control-Max-Age"] = "3600"
+    return response
 
 # Include all routers
 app.include_router(auth.router)

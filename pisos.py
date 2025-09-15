@@ -113,25 +113,56 @@ def read_pisos(db: Session = Depends(get_db), current_user=Depends(get_current_u
 def delete_piso(piso_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """Eliminar piso - Solo Supervisores pueden eliminar pisos"""
     
-    # Verificar que es Supervisor
-    if current_user.rol != "Supervisor":
-        raise HTTPException(status_code=403, detail="Solo supervisores pueden eliminar pisos")
-    
-    # Buscar el piso en la compañía del supervisor
-    piso = db.query(Piso).filter(
-        Piso.id == piso_id,
-        Piso.compania_id == current_user.compania_id
-    ).first()
-    
-    if not piso:
-        raise HTTPException(status_code=404, detail="Piso no encontrado")
-    
-    # Eliminar el piso
-    piso_direccion = piso.direccion or f"Piso ID {piso.id}"
-    db.delete(piso)
-    db.commit()
-    
-    return {"message": f"Piso {piso_direccion} eliminado exitosamente"}
+    try:
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Iniciando eliminación de piso {piso_id} por usuario {current_user.email}")
+        
+        # Verificar que es Supervisor
+        if current_user.rol != "Supervisor":
+            logger.error(f"Usuario {current_user.email} no es supervisor")
+            raise HTTPException(status_code=403, detail="Solo supervisores pueden eliminar pisos")
+        
+        # Buscar el piso en la compañía del supervisor
+        piso = db.query(Piso).filter(
+            Piso.id == piso_id,
+            Piso.compania_id == current_user.compania_id
+        ).first()
+        
+        if not piso:
+            logger.error(f"Piso {piso_id} no encontrado para compañía {current_user.compania_id}")
+            raise HTTPException(status_code=404, detail="Piso no encontrado")
+        
+        piso_direccion = piso.direccion or f"Piso ID {piso.id}"
+        logger.info(f"Piso encontrado: {piso_direccion}")
+        
+        # Verificar relaciones antes de eliminar
+        from models import ClienteEstadoPiso
+        estados_relacionados = db.query(ClienteEstadoPiso).filter(
+            ClienteEstadoPiso.piso_id == piso_id
+        ).all()
+        
+        if estados_relacionados:
+            logger.info(f"Eliminando {len(estados_relacionados)} estados relacionados")
+            for estado in estados_relacionados:
+                db.delete(estado)
+        
+        # Eliminar el piso
+        db.delete(piso)
+        db.commit()
+        
+        logger.info(f"Piso {piso_direccion} eliminado exitosamente")
+        return {"message": f"Piso {piso_direccion} eliminado exitosamente"}
+        
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error inesperado al eliminar piso {piso_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno al eliminar piso: {str(e)}")
 
 @router.put("/{piso_id}", response_model=PisoResponse)
 def update_piso(

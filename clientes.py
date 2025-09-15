@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
-from models import get_db, Cliente
+from models import get_db, Cliente, Usuario
 from utils import get_current_user
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
@@ -130,7 +130,6 @@ def create_cliente(cliente: ClienteCreate, db: Session = Depends(get_db), curren
     # Si es Supervisor y especifica asesor_id, validar que el asesor existe y pertenece a la compañía
     # Si es Supervisor y especifica asesor_id, validar que el asesor existe y pertenece a la compañía
     elif current_user.rol == "Supervisor" and asesor_id:
-        from models import Usuario  # Asegurar import
         asesor_target = db.query(Usuario).filter(
             Usuario.id == asesor_id, 
             Usuario.compania_id == current_user.compania_id
@@ -206,24 +205,57 @@ def read_clientes(db: Session = Depends(get_db), current_user=Depends(get_curren
 def delete_cliente(cliente_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """Eliminar cliente - Asesor solo puede eliminar sus clientes, Supervisor puede eliminar cualquiera"""
     
-    if current_user.rol == "Asesor":
-        cliente = db.query(Cliente).filter(
-            Cliente.id == cliente_id,
-            Cliente.compania_id == current_user.compania_id,
-            Cliente.asesor_id == current_user.id
-        ).first()
-    else:  # Supervisor
-        cliente = db.query(Cliente).filter(
-            Cliente.id == cliente_id,
-            Cliente.compania_id == current_user.compania_id
-        ).first()
-    
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Cliente no encontrado o sin permisos")
-    
-    db.delete(cliente)
-    db.commit()
-    return {"message": f"Cliente {cliente.nombre} eliminado exitosamente"}
+    try:
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Iniciando eliminación de cliente {cliente_id} por usuario {current_user.email}")
+        
+        if current_user.rol == "Asesor":
+            cliente = db.query(Cliente).filter(
+                Cliente.id == cliente_id,
+                Cliente.compania_id == current_user.compania_id,
+                Cliente.asesor_id == current_user.id
+            ).first()
+        else:  # Supervisor
+            cliente = db.query(Cliente).filter(
+                Cliente.id == cliente_id,
+                Cliente.compania_id == current_user.compania_id
+            ).first()
+        
+        if not cliente:
+            logger.error(f"Cliente {cliente_id} no encontrado o sin permisos para usuario {current_user.email}")
+            raise HTTPException(status_code=404, detail="Cliente no encontrado o sin permisos")
+        
+        cliente_nombre = cliente.nombre
+        logger.info(f"Cliente encontrado: {cliente_nombre}")
+        
+        # Verificar relaciones antes de eliminar
+        from models import ClienteEstadoPiso
+        estados_relacionados = db.query(ClienteEstadoPiso).filter(
+            ClienteEstadoPiso.cliente_id == cliente_id
+        ).all()
+        
+        if estados_relacionados:
+            logger.info(f"Eliminando {len(estados_relacionados)} estados relacionados")
+            for estado in estados_relacionados:
+                db.delete(estado)
+        
+        # Eliminar el cliente
+        db.delete(cliente)
+        db.commit()
+        
+        logger.info(f"Cliente {cliente_nombre} eliminado exitosamente")
+        return {"message": f"Cliente {cliente_nombre} eliminado exitosamente"}
+        
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error inesperado al eliminar cliente {cliente_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno al eliminar cliente: {str(e)}")
 
 @router.put("/{cliente_id}", response_model=ClienteResponse)
 def update_cliente(
