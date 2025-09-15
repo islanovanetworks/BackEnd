@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from models import get_db, Cliente, Piso, ClienteEstadoPiso
+from models import get_db, Cliente, Piso, ClienteEstadoPiso, Usuario
 from utils import get_current_user, require_supervisor
 
 router = APIRouter(prefix="/match", tags=["match"])
@@ -43,15 +43,20 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
             raise HTTPException(status_code=404, detail="Piso no encontrado")
         
         # Obtener clientes según el rol del usuario
+        # Obtener clientes según el rol del usuario con información del asesor
         if current_user.rol == "Asesor":
             # Asesor solo ve sus clientes
-            clientes = db.query(Cliente).filter(
+            clientes = db.query(Cliente).options(
+                joinedload(Cliente.asesor_asignado)
+            ).filter(
                 Cliente.compania_id == current_user.compania_id,
                 Cliente.asesor_id == current_user.id
             ).all()
         else:
             # Supervisor ve todos los clientes de la compañía
-            clientes = db.query(Cliente).filter(Cliente.compania_id == current_user.compania_id).all()
+            clientes = db.query(Cliente).options(
+                joinedload(Cliente.asesor_asignado)
+            ).filter(Cliente.compania_id == current_user.compania_id).all()
         
         for cliente in clientes:
             score, penalizaciones = calculate_match_score_with_details(piso, cliente)  # ✅ NUEVO
@@ -74,14 +79,19 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
     
     elif cliente_id:
         # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
+        # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
         if current_user.rol == "Asesor":
-            cliente = db.query(Cliente).filter(
+            cliente = db.query(Cliente).options(
+                joinedload(Cliente.asesor_asignado)
+            ).filter(
                 Cliente.id == cliente_id, 
                 Cliente.compania_id == current_user.compania_id,
                 Cliente.asesor_id == current_user.id
             ).first()
         else:
-            cliente = db.query(Cliente).filter(
+            cliente = db.query(Cliente).options(
+                joinedload(Cliente.asesor_asignado)
+            ).filter(
                 Cliente.id == cliente_id, 
                 Cliente.compania_id == current_user.compania_id
             ).first()
@@ -127,9 +137,11 @@ def calculate_match_score_with_details(piso: Piso, cliente: Cliente) -> tuple[in
             return 0, {}  # EXCLUIR DIRECTAMENTE si no hay match de zona
         
         # 2. Habitaciones: Piso habitaciones >= Cliente habitaciones
+        # 2. Habitaciones: Piso habitaciones >= Cliente habitaciones (10% penalty)
         habitaciones_penalty = check_habitaciones_match(piso, cliente)
         if habitaciones_penalty > 0:
-            return 0, {}  # Exclude directly
+            score -= 10
+            penalizaciones['habitaciones'] = {'penalty': 10, 'color': 'red'}
         
         # 3. Estado: At least one value must match
         if not check_estado_match(piso, cliente):
@@ -142,14 +154,15 @@ def calculate_match_score_with_details(piso: Piso, cliente: Cliente) -> tuple[in
             penalizaciones['tipo_vivienda'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
         
         # 5. Bajos: Exact match required
-        if not check_bajos_match(piso, cliente):
-            score -= 10
-            penalizaciones['bajos'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
+        # 5. Bajos: Eliminatorio - Excluir si no coincide
+        bajos_penalty = check_bajos_match(piso, cliente)
+        if bajos_penalty == -1:  # Exclude directly
+            return 0, {}
         
-        # 6. Entreplantas: Exact match required
-        if not check_entreplanta_match(piso, cliente):
-            score -= 10
-            penalizaciones['entreplanta'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
+        # 6. Entreplantas: Eliminatorio - Excluir si no coincide
+        entreplanta_penalty = check_entreplanta_match(piso, cliente)
+        if entreplanta_penalty == -1:  # Exclude directly
+            return 0, {}
         
         # PARÁMETROS MEDIOS (5% penalty each)
         
@@ -237,7 +250,7 @@ def check_zona_match(piso: Piso, cliente: Cliente) -> bool:
     return bool(cliente_zonas.intersection(piso_zonas))
 
 def check_habitaciones_match(piso: Piso, cliente: Cliente) -> int:
-    """Check habitaciones match. Returns penalty (0 = match, >0 = penalty)."""
+    """Check habitaciones match. Returns penalty (0 = match, 10 = penalty)."""
     if not cliente.habitaciones:
         return 0  # No preference
     
@@ -246,11 +259,11 @@ def check_habitaciones_match(piso: Piso, cliente: Cliente) -> int:
         return 0
     
     if not piso.habitaciones:
-        return 1  # Exclude if piso doesn't specify
+        return 10  # 10% penalty if piso doesn't specify
     
     piso_habitaciones = [int(x) for x in piso.habitaciones.split(",") if x.strip()]
     if not piso_habitaciones:
-        return 1
+        return 10
     
     # Check if piso has at least the minimum required by cliente
     min_cliente = min(cliente_habitaciones)
@@ -259,7 +272,7 @@ def check_habitaciones_match(piso: Piso, cliente: Cliente) -> int:
     if max_piso >= min_cliente:
         return 0  # Match
     else:
-        return 1  # Exclude
+        return 10  # 10% penalty instead of exclude
 
 def check_estado_match(piso: Piso, cliente: Cliente) -> bool:
     """Check if at least one estado value matches."""
@@ -291,17 +304,35 @@ def check_tipo_vivienda_match(piso: Piso, cliente: Cliente) -> bool:
     
     return bool(cliente_tipos.intersection(piso_tipos))
 
-def check_bajos_match(piso: Piso, cliente: Cliente) -> bool:
-    """Check exact match for bajos."""
+def check_bajos_match(piso: Piso, cliente: Cliente) -> int:
+    """Check bajos match. Returns 0 for match, -1 to exclude."""
     if not cliente.bajos:
-        return True  # No preference
-    return cliente.bajos == piso.bajos
+        return 0  # No preference - no penalty
+    
+    # Si el cliente dice SÍ (le da igual), siempre es match
+    if cliente.bajos == "SÍ":
+        return 0  # No penalty
+    
+    # Si el cliente dice NO (no quiere bajos), excluir si el piso es bajo
+    if cliente.bajos == "NO" and piso.bajos == "SÍ":
+        return -1  # Exclude directly - eliminatorio
+    
+    return 0  # No penalty en otros casos
 
-def check_entreplanta_match(piso: Piso, cliente: Cliente) -> bool:
-    """Check exact match for entreplanta."""
+def check_entreplanta_match(piso: Piso, cliente: Cliente) -> int:
+    """Check entreplanta match. Returns 0 for match, -1 to exclude."""
     if not cliente.entreplanta:
-        return True  # No preference
-    return cliente.entreplanta == piso.entreplanta
+        return 0  # No preference - no penalty
+    
+    # Si el cliente dice SÍ (le da igual), siempre es match
+    if cliente.entreplanta == "SÍ":
+        return 0  # No penalty
+    
+    # Si el cliente dice NO (no quiere entreplantas), excluir si el piso es entreplanta
+    if cliente.entreplanta == "NO" and piso.entreplanta == "SÍ":
+        return -1  # Exclude directly - eliminatorio
+    
+    return 0  # No penalty en otros casos
 
 def check_precio_match(piso: Piso, cliente: Cliente) -> int:
     """Check precio match. Returns penalty (0, 5, 10) or -1 to exclude."""
