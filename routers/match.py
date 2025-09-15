@@ -152,14 +152,15 @@ def calculate_match_score_with_details(piso: Piso, cliente: Cliente) -> tuple[in
             penalizaciones['tipo_vivienda'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
         
         # 5. Bajos: Exact match required
-        if not check_bajos_match(piso, cliente):
-            score -= 10
-            penalizaciones['bajos'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
+        # 5. Bajos: Eliminatorio - Excluir si no coincide
+        bajos_penalty = check_bajos_match(piso, cliente)
+        if bajos_penalty == -1:  # Exclude directly
+            return 0, {}
         
-        # 6. Entreplantas: Exact match required
-        if not check_entreplanta_match(piso, cliente):
-            score -= 10
-            penalizaciones['entreplanta'] = {'penalty': 10, 'color': 'red'}  # ✅ NUEVO
+        # 6. Entreplantas: Eliminatorio - Excluir si no coincide
+        entreplanta_penalty = check_entreplanta_match(piso, cliente)
+        if entreplanta_penalty == -1:  # Exclude directly
+            return 0, {}
         
         # PARÁMETROS MEDIOS (5% penalty each)
         
@@ -301,17 +302,35 @@ def check_tipo_vivienda_match(piso: Piso, cliente: Cliente) -> bool:
     
     return bool(cliente_tipos.intersection(piso_tipos))
 
-def check_bajos_match(piso: Piso, cliente: Cliente) -> bool:
-    """Check exact match for bajos."""
+def check_bajos_match(piso: Piso, cliente: Cliente) -> int:
+    """Check bajos match. Returns 0 for match, -1 to exclude."""
     if not cliente.bajos:
-        return True  # No preference
-    return cliente.bajos == piso.bajos
+        return 0  # No preference - no penalty
+    
+    # Si el cliente dice SÍ (le da igual), siempre es match
+    if cliente.bajos == "SÍ":
+        return 0  # No penalty
+    
+    # Si el cliente dice NO (no quiere bajos), excluir si el piso es bajo
+    if cliente.bajos == "NO" and piso.bajos == "SÍ":
+        return -1  # Exclude directly - eliminatorio
+    
+    return 0  # No penalty en otros casos
 
-def check_entreplanta_match(piso: Piso, cliente: Cliente) -> bool:
-    """Check exact match for entreplanta."""
+def check_entreplanta_match(piso: Piso, cliente: Cliente) -> int:
+    """Check entreplanta match. Returns 0 for match, -1 to exclude."""
     if not cliente.entreplanta:
-        return True  # No preference
-    return cliente.entreplanta == piso.entreplanta
+        return 0  # No preference - no penalty
+    
+    # Si el cliente dice SÍ (le da igual), siempre es match
+    if cliente.entreplanta == "SÍ":
+        return 0  # No penalty
+    
+    # Si el cliente dice NO (no quiere entreplantas), excluir si el piso es entreplanta
+    if cliente.entreplanta == "NO" and piso.entreplanta == "SÍ":
+        return -1  # Exclude directly - eliminatorio
+    
+    return 0  # No penalty en otros casos
 
 def check_precio_match(piso: Piso, cliente: Cliente) -> int:
     """Check precio match. Returns penalty (0, 5, 10) or -1 to exclude."""
