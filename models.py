@@ -79,6 +79,7 @@ class Piso(Base):
     patio = Column(String, nullable=True)
     interior = Column(String, nullable=True)
     caracteristicas_adicionales = Column(String, nullable=True)
+    paralizado = Column(String, default="NO", nullable=True)  # NUEVO: Campo para paralizar pisos
     compania_id = Column(Integer, ForeignKey("companias.id"))
     compania = relationship("Compania", back_populates="pisos")
 
