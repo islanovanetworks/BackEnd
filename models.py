@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -117,6 +118,42 @@ def create_db_and_tables():
         print("⚠️ DEVELOPMENT MODE detected - still creating safely")
         Base.metadata.create_all(bind=engine)  # SIEMPRE seguro
         print("✅ Development database ready!")
+    
+    # 🆕 MIGRACIÓN SEGURA: Añadir columna paralizado si no existe
+    migrate_add_paralizado_column()
+
+def migrate_add_paralizado_column():
+    """
+    🛡️ MIGRACIÓN SEGURA - Añadir columna paralizado sin afectar datos existentes
+    """
+    try:
+        db = SessionLocal()
+        
+        # Verificar si la columna ya existe
+        result = db.execute("SELECT column_name FROM information_schema.columns WHERE table_name='pisos' AND column_name='paralizado';")
+        column_exists = result.fetchone()
+        
+        if not column_exists:
+            print("🔄 MIGRACIÓN: Añadiendo columna 'paralizado' a tabla pisos...")
+            
+            # Añadir columna con valor por defecto 'NO'
+            db.execute("ALTER TABLE pisos ADD COLUMN paralizado VARCHAR DEFAULT 'NO';")
+            
+            # Actualizar todos los registros existentes con 'NO' (pisos activos)
+            db.execute("UPDATE pisos SET paralizado = 'NO' WHERE paralizado IS NULL;")
+            
+            db.commit()
+            print("✅ MIGRACIÓN COMPLETADA: Columna 'paralizado' añadida exitosamente")
+            print("✅ Todos los pisos existentes marcados como ACTIVOS (paralizado='NO')")
+        else:
+            print("✅ MIGRACIÓN NO NECESARIA: Columna 'paralizado' ya existe")
+            
+    except Exception as e:
+        print(f"❌ ERROR EN MIGRACIÓN: {str(e)}")
+        db.rollback()
+        raise e
+    finally:
+        db.close()
 
 def emergency_reset_database():
     """
