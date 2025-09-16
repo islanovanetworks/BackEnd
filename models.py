@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
@@ -129,18 +129,18 @@ def migrate_add_paralizado_column():
     try:
         db = SessionLocal()
         
-        # Verificar si la columna ya existe
-        result = db.execute("SELECT column_name FROM information_schema.columns WHERE table_name='pisos' AND column_name='paralizado';")
+        # Verificar si la columna ya existe usando text() para SQLAlchemy 2.0
+        result = db.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='pisos' AND column_name='paralizado';"))
         column_exists = result.fetchone()
         
         if not column_exists:
             print("🔄 MIGRACIÓN: Añadiendo columna 'paralizado' a tabla pisos...")
             
             # Añadir columna con valor por defecto 'NO'
-            db.execute("ALTER TABLE pisos ADD COLUMN paralizado VARCHAR DEFAULT 'NO';")
+            db.execute(text("ALTER TABLE pisos ADD COLUMN paralizado VARCHAR DEFAULT 'NO';"))
             
             # Actualizar todos los registros existentes con 'NO' (pisos activos)
-            db.execute("UPDATE pisos SET paralizado = 'NO' WHERE paralizado IS NULL;")
+            db.execute(text("UPDATE pisos SET paralizado = 'NO' WHERE paralizado IS NULL;"))
             
             db.commit()
             print("✅ MIGRACIÓN COMPLETADA: Columna 'paralizado' añadida exitosamente")
