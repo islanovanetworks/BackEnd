@@ -38,9 +38,14 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
     
     if piso_id:
         # Verificar que el piso pertenece a la compañía del usuario
-        piso = db.query(Piso).filter(Piso.id == piso_id, Piso.compania_id == current_user.compania_id).first()
+        # Verificar que el piso pertenece a la compañía del usuario y NO está paralizado
+        piso = db.query(Piso).filter(
+            Piso.id == piso_id, 
+            Piso.compania_id == current_user.compania_id,
+            Piso.paralizado != "SÍ"
+        ).first()
         if not piso:
-            raise HTTPException(status_code=404, detail="Piso no encontrado")
+            raise HTTPException(status_code=404, detail="Piso no encontrado o está paralizado")
         
         # Obtener clientes según el rol del usuario
         # Obtener clientes según el rol del usuario con información del asesor
@@ -100,7 +105,11 @@ def obtener_matches(piso_id: int = None, cliente_id: int = None, db: Session = D
             raise HTTPException(status_code=404, detail="Cliente no encontrado")
         
         # Todos los usuarios pueden ver todos los pisos de su compañía
-        pisos = db.query(Piso).filter(Piso.compania_id == current_user.compania_id).all()
+        # Todos los usuarios pueden ver todos los pisos ACTIVOS de su compañía
+        pisos = db.query(Piso).filter(
+            Piso.compania_id == current_user.compania_id,
+            Piso.paralizado != "SÍ"
+        ).all()
         for piso in pisos:
             score, penalizaciones = calculate_match_score_with_details(piso, cliente)  # ✅ NUEVO
             if score >= 50:  # Only show matches with 50% or higher
