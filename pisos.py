@@ -109,7 +109,11 @@ def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=De
 
 @router.get("/", response_model=list[PisoResponse])
 def read_pisos(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    pisos = db.query(Piso).filter(Piso.compania_id == current_user.compania_id).all()
+    # Solo mostrar pisos ACTIVOS (no paralizados) para búsquedas
+    pisos = db.query(Piso).filter(
+        Piso.compania_id == current_user.compania_id,
+        Piso.paralizado != "SÍ"
+    ).all()
     return pisos
 
 @router.delete("/{piso_id}")
