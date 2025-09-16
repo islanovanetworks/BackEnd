@@ -393,32 +393,61 @@ def check_ascensor_match(piso: Piso, cliente: Cliente) -> int:
     if not piso.ascensor:
         return 0  # No info, no penalty
     
-    # Map ascensor values to floor numbers - CORREGIDO para coincidir exactamente con FrontEnd
-    ascensor_floors = {
-        "SÍ": 0,
-        "Después de 1º": 1,
-        "Después de 2º": 2, 
-        "Después de 3º": 3,
-        "Después de 4º": 4,
-        "Después de 5º": 5
-        # NO se incluye "NO" porque no existe como opción en el FrontEnd
-    }
+    # Handle piso WITH elevator (SÍ) - Always perfect match
+    if piso.ascensor == "SÍ":
+        return 0  # Perfect match - piso has elevator
     
-    cliente_floor = ascensor_floors.get(cliente.ascensor, 0)
-    piso_floor = ascensor_floors.get(piso.ascensor, 0)
+    # Handle piso WITHOUT elevator (NO)
+    elif piso.ascensor == "NO":
+        # Get the actual floor number of the piso
+        if not piso.planta:
+            return 0  # No floor info, no penalty
+        
+        try:
+            # Parse piso floor number
+            if piso.planta == "Entreplanta":
+                piso_floor_number = 0  # Treat entreplanta as ground level
+            elif piso.planta == "-1":
+                piso_floor_number = -1  # Basement
+            else:
+                piso_floor_number = int(piso.planta)
+        except (ValueError, TypeError):
+            return 0  # Can't parse floor, no penalty
+        
+        # If piso is basement or ground floor, no stairs to climb
+        if piso_floor_number <= 0:
+            return 0  # No climbing required
+        
+        # Map client ascensor preferences to maximum floors they accept to climb
+        cliente_max_climb = {
+            "SÍ": 0,  # Wants elevator from ground = accepts 0 floors to climb
+            "Después de 1º": 1,  # Accepts climbing up to 1 floor
+            "Después de 2º": 2,  # Accepts climbing up to 2 floors
+            "Después de 3º": 3,  # Accepts climbing up to 3 floors
+            "Después de 4º": 4,  # Accepts climbing up to 4 floors
+            "Después de 5º": 5   # Accepts climbing up to 5 floors
+        }
+        
+        max_acceptable_climb = cliente_max_climb.get(cliente.ascensor, 0)
+        
+        # Calculate floors to climb (piso floor number = floors to climb)
+        floors_to_climb = piso_floor_number
+        
+        # Calculate excess climbing beyond client's acceptance
+        climb_excess = floors_to_climb - max_acceptable_climb
+        
+        if climb_excess <= 0:
+            return 0  # Within acceptable climbing range
+        elif climb_excess == 1:
+            return 5  # 1 extra floor to climb = 5% penalty
+        elif climb_excess == 2:
+            return 10  # 2 extra floors to climb = 10% penalty
+        else:
+            return -1  # More than 2 extra floors = exclude directly
     
-    if piso_floor <= cliente_floor:
-        return 0  # Match
-    
-    # Calculate deviation
-    deviation = piso_floor - cliente_floor
-    
-    if deviation == 1:
-        return 5  # 5% penalty for 1 floor deviation
-    elif deviation == 2:
-        return 10  # 10% penalty for 2 floor deviation
+    # Fallback for any other ascensor values
     else:
-        return -1  # Exclude for more than 2 floors
+        return 0  # No penalty for unknown values
 
 def check_cercania_metro_match(piso: Piso, cliente: Cliente) -> int:
     """Check metro proximity with distance deviation logic."""
