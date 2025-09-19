@@ -604,6 +604,189 @@ import io
 import json
 from datetime import datetime
 
+class ClienteHistorialResponse(BaseModel):
+    piso_id: int
+    score: int
+    estado: str = "Pendiente"
+    fecha_actualizacion: Optional[str] = None
+    penalizaciones: dict = {}
+
+@router.get("/historial-cliente/{cliente_id}", response_model=list[ClienteHistorialResponse])
+def obtener_historial_cliente(
+    cliente_id: int, 
+    db: Session = Depends(get_db), 
+    current_user = Depends(get_current_user)
+):
+    """Obtener historial completo de matches para un cliente específico"""
+    
+    # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
+    if current_user.rol == "Asesor":
+        cliente = db.query(Cliente).options(
+            joinedload(Cliente.asesor_asignado)
+        ).filter(
+            Cliente.id == cliente_id, 
+            Cliente.compania_id == current_user.compania_id,
+            Cliente.asesor_id == current_user.id
+        ).first()
+    else:
+        cliente = db.query(Cliente).options(
+            joinedload(Cliente.asesor_asignado)
+        ).filter(
+            Cliente.id == cliente_id, 
+            Cliente.compania_id == current_user.compania_id
+        ).first()
+        
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    # Obtener TODOS los pisos de la compañía (activos Y paralizados) para historial completo
+    pisos = db.query(Piso).filter(
+        Piso.compania_id == current_user.compania_id
+    ).all()
+    
+    # Obtener todos los estados registrados para este cliente
+    estados_cliente = db.query(ClienteEstadoPiso).filter(
+        ClienteEstadoPiso.cliente_id == cliente_id,
+        ClienteEstadoPiso.compania_id == current_user.compania_id
+    ).all()
+    
+    # Crear diccionario de estados para búsqueda rápida
+    estados_dict = {}
+    for estado in estados_cliente:
+        estados_dict[estado.piso_id] = {
+            'estado': estado.estado,
+            'fecha': estado.fecha_actualizacion
+        }
+    
+    # Calcular matches para TODOS los pisos (histórico completo)
+    historial = []
+    for piso in pisos:
+        score, penalizaciones = calculate_match_score_with_details(piso, cliente)
+        if score >= 50:  # Solo matches válidos (50% o más)
+            estado_info = estados_dict.get(piso.id, {'estado': 'Pendiente', 'fecha': None})
+            
+            historial.append(ClienteHistorialResponse(
+                piso_id=piso.id,
+                score=score,
+                estado=estado_info['estado'],
+                fecha_actualizacion=estado_info['fecha'],
+                penalizaciones=penalizaciones
+            ))
+    
+    # Ordenar por score descendente (mejores matches primero)
+    historial.sort(key=lambda x: x.score, reverse=True)
+    return historial
+
+@router.get("/historial-cliente/{cliente_id}/download-excel")
+async def download_cliente_historial_excel(
+    cliente_id: int,
+    db: Session = Depends(get_db), 
+    current_user = Depends(get_current_user)
+):
+    """Descargar historial de cliente en formato Excel - Asesor (sus clientes) y Supervisor (todos)"""
+    
+    # Verificar que el cliente pertenece a la compañía y, si es Asesor, que le pertenece
+    if current_user.rol == "Asesor":
+        cliente = db.query(Cliente).options(
+            joinedload(Cliente.asesor_asignado)
+        ).filter(
+            Cliente.id == cliente_id, 
+            Cliente.compania_id == current_user.compania_id,
+            Cliente.asesor_id == current_user.id
+        ).first()
+    else:
+        cliente = db.query(Cliente).options(
+            joinedload(Cliente.asesor_asignado)
+        ).filter(
+            Cliente.id == cliente_id, 
+            Cliente.compania_id == current_user.compania_id
+        ).first()
+        
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    try:
+        # Obtener TODOS los pisos de la compañía (incluyendo paralizados para historial completo)
+        pisos = db.query(Piso).filter(
+            Piso.compania_id == current_user.compania_id
+        ).all()
+        
+        # Obtener estados registrados para este cliente
+        estados_cliente = db.query(ClienteEstadoPiso).filter(
+            ClienteEstadoPiso.cliente_id == cliente_id,
+            ClienteEstadoPiso.compania_id == current_user.compania_id
+        ).all()
+        
+        # Crear diccionario de estados
+        estados_dict = {}
+        for estado in estados_cliente:
+            estados_dict[estado.piso_id] = {
+                'estado': estado.estado,
+                'fecha': estado.fecha_actualizacion
+            }
+        
+        # Preparar datos para Excel
+        excel_data = []
+        
+        for piso in pisos:
+            score, penalizaciones = calculate_match_score_with_details(piso, cliente)
+            if score >= 50:  # Solo matches válidos
+                estado_info = estados_dict.get(piso.id, {'estado': 'Pendiente', 'fecha': ''})
+                
+                row = {
+                    'Cliente_Nombre': cliente.nombre,
+                    'Cliente_Telefono': cliente.telefono,
+                    'Cliente_Banco': cliente.banco or '',
+                    'Cliente_Kiron': cliente.kiron or '',
+                    'Cliente_Entrada': cliente.entrada,
+                    'Cliente_Precio': cliente.precio,
+                    'Cliente_Zona': cliente.zona,
+                    'Cliente_M2': cliente.m2,
+                    'Cliente_Habitaciones': cliente.habitaciones or '',
+                    'Asesor_Asignado': cliente.asesor_asignado.email if cliente.asesor_asignado else 'Sin asignar',
+                    'Piso_ID': piso.id,
+                    'Piso_Direccion': piso.direccion or f"Piso ID {piso.id}",
+                    'Piso_Zona': piso.zona,
+                    'Piso_Precio': piso.precio,
+                    'Piso_M2': piso.m2,
+                    'Piso_Habitaciones': piso.habitaciones or '',
+                    'Piso_Estado': piso.estado or '',
+                    'Piso_Tipo_Vivienda': piso.tipo_vivienda or '',
+                    'Piso_Paralizado': piso.paralizado or 'NO',
+                    'Compatibilidad': score,
+                    'Estado_Actual': estado_info['estado'],
+                    'Fecha_Actualizacion': estado_info['fecha'],
+                    'Penalizaciones_Precio': 'SÍ' if 'precio' in penalizaciones else 'NO',
+                    'Penalizaciones_M2': 'SÍ' if 'm2' in penalizaciones else 'NO',
+                    'Penalizaciones_Ascensor': 'SÍ' if 'ascensor' in penalizaciones else 'NO',
+                    'Penalizaciones_Metro': 'SÍ' if 'cercania_metro' in penalizaciones else 'NO',
+                    'Penalizaciones_Otras': len([k for k in penalizaciones.keys() if k not in ['precio', 'm2', 'ascensor', 'cercania_metro']])
+                }
+                excel_data.append(row)
+        
+        # Ordenar por compatibilidad descendente
+        excel_data.sort(key=lambda x: x['Compatibilidad'], reverse=True)
+        
+        if not excel_data:
+            raise HTTPException(status_code=404, detail="No hay historial de matches para este cliente")
+        
+        # Preparar respuesta como JSON
+        response_data = {
+            'cliente_id': cliente_id,
+            'cliente_nombre': cliente.nombre,
+            'compania_id': current_user.compania_id,
+            'fecha_generacion': datetime.now().isoformat(),
+            'total_matches': len(excel_data),
+            'datos': excel_data
+        }
+        
+        return response_data
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error generating cliente historial Excel: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generando reporte: {str(e)}")
+
 @router.get("/download-excel")
 async def download_matches_excel(db: Session = Depends(get_db), current_user = Depends(require_supervisor)):
     """Descargar todos los matches de la compañía en formato Excel - SOLO Supervisores"""
