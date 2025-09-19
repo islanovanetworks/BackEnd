@@ -1,5 +1,6 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
+from datetime import datetime
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
@@ -79,6 +80,7 @@ class Piso(Base):
     patio = Column(String, nullable=True)
     interior = Column(String, nullable=True)
     caracteristicas_adicionales = Column(String, nullable=True)
+    paralizado = Column(String, default="NO", nullable=True)  # NUEVO: Campo para paralizar pisos
     compania_id = Column(Integer, ForeignKey("companias.id"))
     compania = relationship("Compania", back_populates="pisos")
 
@@ -116,6 +118,42 @@ def create_db_and_tables():
         print("⚠️ DEVELOPMENT MODE detected - still creating safely")
         Base.metadata.create_all(bind=engine)  # SIEMPRE seguro
         print("✅ Development database ready!")
+    
+    # 🆕 MIGRACIÓN SEGURA: Añadir columna paralizado si no existe
+    migrate_add_paralizado_column()
+
+def migrate_add_paralizado_column():
+    """
+    🛡️ MIGRACIÓN SEGURA - Añadir columna paralizado sin afectar datos existentes
+    """
+    try:
+        db = SessionLocal()
+        
+        # Verificar si la columna ya existe usando text() para SQLAlchemy 2.0
+        result = db.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='pisos' AND column_name='paralizado';"))
+        column_exists = result.fetchone()
+        
+        if not column_exists:
+            print("🔄 MIGRACIÓN: Añadiendo columna 'paralizado' a tabla pisos...")
+            
+            # Añadir columna con valor por defecto 'NO'
+            db.execute(text("ALTER TABLE pisos ADD COLUMN paralizado VARCHAR DEFAULT 'NO';"))
+            
+            # Actualizar todos los registros existentes con 'NO' (pisos activos)
+            db.execute(text("UPDATE pisos SET paralizado = 'NO' WHERE paralizado IS NULL;"))
+            
+            db.commit()
+            print("✅ MIGRACIÓN COMPLETADA: Columna 'paralizado' añadida exitosamente")
+            print("✅ Todos los pisos existentes marcados como ACTIVOS (paralizado='NO')")
+        else:
+            print("✅ MIGRACIÓN NO NECESARIA: Columna 'paralizado' ya existe")
+            
+    except Exception as e:
+        print(f"❌ ERROR EN MIGRACIÓN: {str(e)}")
+        db.rollback()
+        raise e
+    finally:
+        db.close()
 
 def emergency_reset_database():
     """

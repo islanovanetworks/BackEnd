@@ -26,6 +26,7 @@ class PisoCreate(BaseModel):
     patio: Optional[str] = None
     interior: Optional[str] = None
     caracteristicas_adicionales: Optional[str] = None
+    paralizado: Optional[str] = "NO"  # NUEVO: Campo para paralizar pisos
     compania_id: int
 
 class PisoResponse(BaseModel):
@@ -50,6 +51,7 @@ class PisoResponse(BaseModel):
     patio: Optional[str]
     interior: Optional[str]
     caracteristicas_adicionales: Optional[str]
+    paralizado: Optional[str] = "NO"  # NUEVO: Campo para paralizar pisos
     compania_id: int
 
 @router.post("/", response_model=PisoResponse)
@@ -86,6 +88,7 @@ def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=De
             patio=piso.patio,
             interior=piso.interior,
             caracteristicas_adicionales=piso.caracteristicas_adicionales.strip() if piso.caracteristicas_adicionales else None,
+            paralizado=piso.paralizado or "NO",  # NUEVO: Campo para paralizar pisos
             compania_id=piso.compania_id
         )
         db.add(db_piso)
@@ -106,7 +109,11 @@ def create_piso(piso: PisoCreate, db: Session = Depends(get_db), current_user=De
 
 @router.get("/", response_model=list[PisoResponse])
 def read_pisos(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    pisos = db.query(Piso).filter(Piso.compania_id == current_user.compania_id).all()
+    # Solo mostrar pisos ACTIVOS (no paralizados) para búsquedas
+    pisos = db.query(Piso).filter(
+        Piso.compania_id == current_user.compania_id,
+        Piso.paralizado != "SÍ"
+    ).all()
     return pisos
 
 @router.delete("/{piso_id}")
@@ -202,6 +209,7 @@ def update_piso(
             raise HTTPException(status_code=400, detail="Los metros cuadrados deben ser mayor a 0")
         
         # Actualizar campos
+        # Actualizar campos
         piso.direccion = piso_data.direccion.strip() if piso_data.direccion else None
         piso.zona = ",".join(piso_data.zona) if isinstance(piso_data.zona, list) else str(piso_data.zona)
         piso.subzonas = piso_data.subzonas.strip() if piso_data.subzonas else None
@@ -220,6 +228,7 @@ def update_piso(
         piso.patio = piso_data.patio
         piso.interior = piso_data.interior
         piso.caracteristicas_adicionales = piso_data.caracteristicas_adicionales.strip() if piso_data.caracteristicas_adicionales else None
+        piso.paralizado = piso_data.paralizado or "NO"  # NUEVO: Campo para paralizar pisos
         
         db.commit()
         db.refresh(piso)
@@ -245,3 +254,42 @@ def read_all_pisos(db: Session = Depends(get_db), current_user=Depends(get_curre
     
     pisos = db.query(Piso).filter(Piso.compania_id == current_user.compania_id).all()
     return pisos
+
+@router.put("/{piso_id}/paralizar", response_model=PisoResponse)
+def toggle_piso_paralizado(
+    piso_id: int, 
+    db: Session = Depends(get_db), 
+    current_user=Depends(get_current_user)
+):
+    """Cambiar estado de paralización de un piso - Solo Supervisores"""
+    
+    # Verificar que es Supervisor
+    if current_user.rol != "Supervisor":
+        raise HTTPException(status_code=403, detail="Solo supervisores pueden paralizar pisos")
+    
+    # Buscar el piso en la compañía del supervisor
+    piso = db.query(Piso).filter(
+        Piso.id == piso_id,
+        Piso.compania_id == current_user.compania_id
+    ).first()
+    
+    if not piso:
+        raise HTTPException(status_code=404, detail="Piso no encontrado")
+    
+    try:
+        # Cambiar estado de paralización
+        piso.paralizado = "SÍ" if piso.paralizado != "SÍ" else "NO"
+        
+        db.commit()
+        db.refresh(piso)
+        
+        action = "paralizado" if piso.paralizado == "SÍ" else "reactivado"
+        print(f"Piso {piso.id} {action} por supervisor {current_user.email}")
+        
+        return piso
+        
+    except Exception as e:
+        db.rollback()
+        import logging
+        logging.error(f"Error toggling piso paralizado status {piso_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno al cambiar estado: {str(e)}")
