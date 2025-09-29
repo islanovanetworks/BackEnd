@@ -22,13 +22,15 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
 if ENVIRONMENT == "test":
     origins = [
-        "https://front-end-test-git-develop-julians-projects-1b5ab696.vercel.app",
+        "https://front-end-dra8.vercel.app",  # ← TU URL CORRECTA DE VERCEL TEST
+        "https://front-end-dra8-*.vercel.app",  # Preview deployments de Vercel
         "http://localhost:3000",
         "http://localhost:8080",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8080"
     ]
     print("🧪 Running in TEST environment")
+    print(f"📡 CORS enabled for TEST origins: {origins}")
 else:
     # Producción - CORS COMPLETO
     origins = [
@@ -41,6 +43,7 @@ else:
         "http://127.0.0.1:8080"
     ]
     print("🚀 Running in PRODUCTION environment")
+    print(f"📡 CORS enabled for PRODUCTION origins: {origins}")
 
 # CORS
 app.add_middleware(
