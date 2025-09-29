@@ -50,7 +50,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             logger.error(f"User not found: {form_data.username}")
             raise HTTPException(status_code=401, detail="Incorrect email or password")
         
-        if not pwd_context.verify(form_data.password, user.password):
+        # Truncar password a 72 bytes antes de verificar
+        password_truncated = form_data.password[:72]
+        if not pwd_context.verify(password_truncated, user.password):
             logger.error(f"Password verification failed for: {form_data.username}")
             raise HTTPException(status_code=401, detail="Incorrect email or password")
         
