@@ -22,11 +22,10 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
 if ENVIRONMENT == "test":
     origins = [
-        "https://testingfront-end-vndu.vercel.app",  # ← NUEVO: Tu deployment principal de test
-        "https://testingfront-end-vndu-git-develop-julians-projects-1b5ab696.vercel.app",  # ← Git branch deployment
-        "https://testingfront-end-vndu-qf938jx5o-julians-projects-1b5ab696.vercel.app",  # ← Preview deployment
+        "https://testfrontend-umber.vercel.app",  # ← TU NUEVO DOMINIO DE TEST
+        "https://testfrontend-lf66bm4zd-julians-projects-1b5ab696.vercel.app",  # ← Preview deployment
+        "https://testingfront-end-vndu.vercel.app",  # ← Mantener por compatibilidad
         "https://front-end-dra8.vercel.app",  # ← Mantener por compatibilidad
-        "https://front-end-dra8-*.vercel.app",  # Preview deployments antiguos
         "http://localhost:3000",
         "http://localhost:8080",
         "http://127.0.0.1:3000",
