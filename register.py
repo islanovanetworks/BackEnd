@@ -41,8 +41,9 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
             logger.error(f"Email {user.email} already registered")
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        # Hash the password
-        hashed_password = pwd_context.hash(user.password)
+        # Hash the password (truncar a 72 bytes para bcrypt)
+        password_truncated = user.password[:72]
+        hashed_password = pwd_context.hash(password_truncated)
         logger.info(f"Password hashed successfully for email: {user.email}")
         
         # Create new user - SIEMPRE como Asesor
@@ -86,8 +87,9 @@ def register_supervisor(
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        # Hash the password
-        hashed_password = pwd_context.hash(user.password)
+        password_truncated = user.password[:72]
+        hashed_password = pwd_context.hash(password_truncated)
+        logger.info(f"Password hashed successfully for email: {user.email}")
         
         # Create new supervisor
         db_user = Usuario(
@@ -131,8 +133,10 @@ def register_first_supervisor(user: SupervisorUserCreate, db: Session = Depends(
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        # Hash the password
-        hashed_password = pwd_context.hash(user.password)
+        # Hash the password (truncar a 72 bytes para bcrypt)
+        password_truncated = user.password[:72]
+        hashed_password = pwd_context.hash(password_truncated)
+        logger.info(f"Password hashed successfully for email: {user.email}")
         
         # Create first supervisor
         db_user = Usuario(
