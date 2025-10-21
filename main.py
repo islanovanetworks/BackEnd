@@ -147,6 +147,10 @@ app.include_router(match.router)
 app.include_router(register.router)
 app.include_router(asesores.router)
 
+# Importar y registrar el nuevo router de zonas
+from routers import companias_zonas
+app.include_router(companias_zonas.router)
+
 # ✅ Root endpoint with API info
 @app.get("/")
 async def root():
