@@ -22,6 +22,7 @@ def create_compania(compania: CompaniaCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=list[CompaniaResponse])
 def get_companias(db: Session = Depends(get_db)):
     return db.query(Compania).all()
+
 @router.get("/{compania_id}/trial-status")
 def check_trial_status(compania_id: int, db: Session = Depends(get_db)):
     """Verificar si la prueba gratuita de una compañía está activa"""
