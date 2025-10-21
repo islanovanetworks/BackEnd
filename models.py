@@ -14,6 +14,7 @@ class Compania(Base):
     __tablename__ = "companias"
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, index=True)
+    fecha_caducidad_trial = Column(String, nullable=True)  # Formato: "YYYY-MM-DD" o None para sin límite
     usuarios = relationship("Usuario", back_populates="compania")
     clientes = relationship("Cliente", back_populates="compania")
     pisos = relationship("Piso", back_populates="compania")
