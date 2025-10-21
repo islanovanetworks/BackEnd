@@ -22,7 +22,6 @@ def create_compania(compania: CompaniaCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=list[CompaniaResponse])
 def get_companias(db: Session = Depends(get_db)):
     return db.query(Compania).all()
-
 @router.get("/{compania_id}/trial-status")
 def check_trial_status(compania_id: int, db: Session = Depends(get_db)):
     """Verificar si la prueba gratuita de una compañía está activa"""
@@ -31,6 +30,14 @@ def check_trial_status(compania_id: int, db: Session = Depends(get_db)):
     compania = db.query(Compania).filter(Compania.id == compania_id).first()
     if not compania:
         raise HTTPException(status_code=404, detail="Compañía no encontrada")
+    
+    # 🔒 HARDCODED: Compañía 2 tiene prueba caducada
+    if compania_id == 2:
+        return {
+            "trial_active": False,
+            "fecha_caducidad": "2025-10-20",
+            "dias_restantes": 0
+        }
     
     # Si no tiene fecha de caducidad, está activa
     if not compania.fecha_caducidad_trial:
