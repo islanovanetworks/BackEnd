@@ -18,6 +18,14 @@ class Compania(Base):
     usuarios = relationship("Usuario", back_populates="compania")
     clientes = relationship("Cliente", back_populates="compania")
     pisos = relationship("Piso", back_populates="compania")
+    zonas = relationship("CompaniaZona", back_populates="compania")  # NUEVO: Relación con zonas
+
+class CompaniaZona(Base):
+    __tablename__ = "companias_zonas"
+    id = Column(Integer, primary_key=True, index=True)
+    compania_id = Column(Integer, ForeignKey("companias.id"))
+    zona = Column(String, index=True)  # Nombre de la zona (ALTO, OLIVOS, etc.)
+    compania = relationship("Compania", back_populates="zonas")
 
 class Usuario(Base):
     __tablename__ = "usuarios"
@@ -122,6 +130,9 @@ def create_db_and_tables():
     
     # 🆕 MIGRACIÓN SEGURA: Añadir columna paralizado si no existe
     migrate_add_paralizado_column()
+    
+    # 🆕 MIGRACIÓN SEGURA: Crear tabla companias_zonas y poblar con zonas existentes
+    migrate_create_zonas_table()
 
 def migrate_add_paralizado_column():
     """
@@ -148,6 +159,50 @@ def migrate_add_paralizado_column():
             print("✅ Todos los pisos existentes marcados como ACTIVOS (paralizado='NO')")
         else:
             print("✅ MIGRACIÓN NO NECESARIA: Columna 'paralizado' ya existe")
+            
+    except Exception as e:
+        print(f"❌ ERROR EN MIGRACIÓN: {str(e)}")
+        db.rollback()
+        raise e
+    finally:
+        db.close()
+
+def migrate_create_zonas_table():
+    """
+    🛡️ MIGRACIÓN SEGURA - Crear tabla companias_zonas y poblar con zonas existentes
+    """
+    try:
+        db = SessionLocal()
+        
+        # Verificar si la tabla ya existe
+        result = db.execute(text("SELECT to_regclass('companias_zonas');"))
+        table_exists = result.fetchone()[0]
+        
+        if not table_exists:
+            print("🔄 MIGRACIÓN: Creando tabla 'companias_zonas'...")
+            
+            # Crear la tabla usando el modelo
+            Base.metadata.create_all(bind=engine)
+            
+            print("✅ MIGRACIÓN: Tabla 'companias_zonas' creada exitosamente")
+            
+            # Poblar con zonas por defecto de la primera compañía (tu oficina actual)
+            print("🔄 MIGRACIÓN: Poblando zonas por defecto para compañía existente...")
+            
+            zonas_default = ["ALTO", "OLIVOS", "LAGUNA", "BATÁN", "SEPÚLVEDA", "MANZANARES", "PÍO", "PUERTA", "JESUITAS"]
+            
+            # Obtener todas las compañías existentes
+            companias = db.execute(text("SELECT id FROM companias;")).fetchall()
+            
+            for compania in companias:
+                compania_id = compania[0]
+                for zona in zonas_default:
+                    db.execute(text(f"INSERT INTO companias_zonas (compania_id, zona) VALUES ({compania_id}, '{zona}');"))
+            
+            db.commit()
+            print(f"✅ MIGRACIÓN COMPLETADA: Zonas por defecto asignadas a {len(companias)} compañía(s)")
+        else:
+            print("✅ MIGRACIÓN NO NECESARIA: Tabla 'companias_zonas' ya existe")
             
     except Exception as e:
         print(f"❌ ERROR EN MIGRACIÓN: {str(e)}")
