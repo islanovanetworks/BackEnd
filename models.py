@@ -133,6 +133,8 @@ def create_db_and_tables():
     
     # 🆕 MIGRACIÓN SEGURA: Crear tabla companias_zonas y poblar con zonas existentes
     migrate_create_zonas_table()
+    migrate_add_fecha_caducidad_trial()
+    
 
 def migrate_add_paralizado_column():
     """
@@ -159,6 +161,35 @@ def migrate_add_paralizado_column():
             print("✅ Todos los pisos existentes marcados como ACTIVOS (paralizado='NO')")
         else:
             print("✅ MIGRACIÓN NO NECESARIA: Columna 'paralizado' ya existe")
+            
+    except Exception as e:
+        print(f"❌ ERROR EN MIGRACIÓN: {str(e)}")
+        db.rollback()
+        raise e
+    finally:
+        db.close()
+
+def migrate_add_fecha_caducidad_trial():
+    """
+    🛡️ MIGRACIÓN SEGURA - Añadir columna fecha_caducidad_trial sin afectar datos existentes
+    """
+    try:
+        db = SessionLocal()
+        
+        # Verificar si la columna ya existe
+        result = db.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='companias' AND column_name='fecha_caducidad_trial';"))
+        column_exists = result.fetchone()
+        
+        if not column_exists:
+            print("🔄 MIGRACIÓN: Añadiendo columna 'fecha_caducidad_trial' a tabla companias...")
+            
+            # Añadir columna
+            db.execute(text("ALTER TABLE companias ADD COLUMN fecha_caducidad_trial VARCHAR;"))
+            
+            db.commit()
+            print("✅ MIGRACIÓN COMPLETADA: Columna 'fecha_caducidad_trial' añadida exitosamente")
+        else:
+            print("✅ MIGRACIÓN NO NECESARIA: Columna 'fecha_caducidad_trial' ya existe")
             
     except Exception as e:
         print(f"❌ ERROR EN MIGRACIÓN: {str(e)}")
