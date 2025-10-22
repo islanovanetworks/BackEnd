@@ -37,11 +37,9 @@ def get_zonas_current_compania(db: Session = Depends(get_db), current_user=Depen
     """
     zonas = db.query(CompaniaZona).filter(CompaniaZona.compania_id == current_user.compania_id).all()
     
-    # Si no hay zonas, retornar las zonas por defecto (para retrocompatibilidad)
+    # Si no hay zonas configuradas, retornar lista vacía
     if not zonas:
-        print(f"⚠️ WARNING: No hay zonas configuradas para compañía {current_user.compania_id}, usando zonas por defecto")
-        zonas_default = ["ALTO", "OLIVOS", "LAGUNA", "BATÁN", "SEPÚLVEDA", "MANZANARES", "PÍO", "PUERTA", "JESUITAS"]
-        return [{"id": 0, "compania_id": current_user.compania_id, "zona": zona} for zona in zonas_default]
+        print(f"⚠️ WARNING: No hay zonas configuradas para compañía {current_user.compania_id}")
     
     return zonas
 
