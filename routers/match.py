@@ -728,24 +728,53 @@ def get_supervisor_dashboard(db: Session = Depends(get_db), current_user=Depends
         dashboard_data = []
         
         for usuario in usuarios_compania:
-            # Obtener todos los matches donde este usuario es el asesor asignado
-            matches_usuario = db.query(Match).join(Cliente).filter(
-                Cliente.asesor_asignado == usuario.email,
+            # Obtener todos los clientes asignados a este usuario
+            clientes_usuario = db.query(Cliente).filter(
+                Cliente.asesor_id == usuario.id,
                 Cliente.compania_id == current_user.compania_id
             ).all()
             
-            # Contar clientes por estado
-            estado_pendiente = sum(1 for m in matches_usuario if m.estado == "Pendiente")
-            estado_cita = sum(1 for m in matches_usuario if m.estado == "Cita Venta Puesta")
-            estado_descarta = sum(1 for m in matches_usuario if m.estado == "Descarta")
-            estado_no_contesta = sum(1 for m in matches_usuario if m.estado == "No Contesta")
+            # IDs de clientes del usuario
+            cliente_ids = [c.id for c in clientes_usuario]
             
-            total_clientes = len(matches_usuario)
+            if not cliente_ids:
+                # Si no tiene clientes asignados, mostrar con ceros
+                dashboard_data.append({
+                    'asesor_email': usuario.email,
+                    'asesor_nombre': usuario.email.split('@')[0],
+                    'asesor_rol': usuario.rol,
+                    'total_clientes': 0,
+                    'pendiente': 0,
+                    'cita_venta_puesta': 0,
+                    'descarta': 0,
+                    'no_contesta': 0
+                })
+                continue
             
-            # Solo incluir asesores que tienen clientes asignados o todos los asesores/supervisores
+            # Obtener todos los estados de los matches de estos clientes
+            estados_matches = db.query(ClienteEstadoPiso).filter(
+                ClienteEstadoPiso.cliente_id.in_(cliente_ids),
+                ClienteEstadoPiso.compania_id == current_user.compania_id
+            ).all()
+            
+            # Contar clientes únicos por estado
+            clientes_por_estado = {}
+            for estado in estados_matches:
+                if estado.cliente_id not in clientes_por_estado:
+                    clientes_por_estado[estado.cliente_id] = []
+                clientes_por_estado[estado.cliente_id].append(estado.estado)
+            
+            # Contar estados (un cliente puede tener múltiples matches con diferentes estados)
+            estado_pendiente = sum(1 for estados in clientes_por_estado.values() if "Pendiente" in estados)
+            estado_cita = sum(1 for estados in clientes_por_estado.values() if "Cita Venta Puesta" in estados)
+            estado_descarta = sum(1 for estados in clientes_por_estado.values() if "Descarta" in estados)
+            estado_no_contesta = sum(1 for estados in clientes_por_estado.values() if "No Contesta" in estados)
+            
+            total_clientes = len(clientes_usuario)
+            
             dashboard_data.append({
                 'asesor_email': usuario.email,
-                'asesor_nombre': usuario.email.split('@')[0],  # Usar parte del email como nombre
+                'asesor_nombre': usuario.email.split('@')[0],
                 'asesor_rol': usuario.rol,
                 'total_clientes': total_clientes,
                 'pendiente': estado_pendiente,
