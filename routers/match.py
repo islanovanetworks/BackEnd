@@ -757,14 +757,17 @@ def get_supervisor_dashboard(db: Session = Depends(get_db), current_user=Depends
                 ClienteEstadoPiso.compania_id == current_user.compania_id
             ).all()
             
+            # Crear un set de clientes que tienen al menos un match registrado
+            clientes_con_matches = set()
+            
             # Contar clientes únicos por estado
-            # Un cliente puede tener múltiples matches, contar cuántos clientes tienen al menos un match en cada estado
             clientes_con_pendiente = set()
             clientes_con_cita = set()
             clientes_con_descarta = set()
             clientes_con_no_contesta = set()
             
             for estado_match in estados_matches:
+                clientes_con_matches.add(estado_match.cliente_id)
                 if estado_match.estado == "Pendiente":
                     clientes_con_pendiente.add(estado_match.cliente_id)
                 elif estado_match.estado == "Cita Venta Puesta":
@@ -773,6 +776,10 @@ def get_supervisor_dashboard(db: Session = Depends(get_db), current_user=Depends
                     clientes_con_descarta.add(estado_match.cliente_id)
                 elif estado_match.estado == "No Contesta":
                     clientes_con_no_contesta.add(estado_match.cliente_id)
+            
+            # CLAVE: Los clientes sin matches se consideran "Pendiente" por defecto
+            clientes_sin_matches = set(cliente_ids) - clientes_con_matches
+            clientes_con_pendiente.update(clientes_sin_matches)
             
             total_clientes = len(clientes_usuario)
             
