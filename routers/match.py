@@ -700,3 +700,111 @@ async def download_matches_excel(db: Session = Depends(get_db), current_user = D
         import logging
         logging.error(f"Error generating Excel: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generando reporte: {str(e)}")
+
+@router.get("/supervisor-dashboard")
+def get_supervisor_dashboard(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """
+    📊 Panel de Supervisión de Asesores
+    
+    Solo accesible para Supervisores.
+    Devuelve estadísticas de todos los asesores de la misma compañía:
+    - Nombre del asesor
+    - Clientes en estado "Pendiente"
+    - Clientes en estado "Cita Venta Puesta"
+    - Clientes en estado "Descarta"
+    - Clientes en estado "No Contesta"
+    """
+    
+    # Verificar que el usuario sea Supervisor
+    if current_user.rol != "Supervisor":
+        raise HTTPException(status_code=403, detail="Acceso denegado. Solo supervisores pueden acceder.")
+    
+    try:
+        # Obtener todos los usuarios (asesores y supervisores) de la misma compañía
+        usuarios_compania = db.query(Usuario).filter(
+            Usuario.compania_id == current_user.compania_id
+        ).all()
+        
+        dashboard_data = []
+        
+        for usuario in usuarios_compania:
+            # Obtener todos los clientes asignados a este usuario
+            clientes_usuario = db.query(Cliente).filter(
+                Cliente.asesor_id == usuario.id,
+                Cliente.compania_id == current_user.compania_id
+            ).all()
+            
+            # IDs de clientes del usuario
+            cliente_ids = [c.id for c in clientes_usuario]
+            
+            if not cliente_ids:
+                # Si no tiene clientes asignados, mostrar con ceros
+                dashboard_data.append({
+                    'asesor_email': usuario.email,
+                    'asesor_nombre': usuario.email.split('@')[0],
+                    'asesor_rol': usuario.rol,
+                    'total_clientes': 0,
+                    'pendiente': 0,
+                    'cita_venta_puesta': 0,
+                    'descarta': 0,
+                    'no_contesta': 0
+                })
+                continue
+            
+            # Obtener todos los estados de los matches de estos clientes
+            estados_matches = db.query(ClienteEstadoPiso).filter(
+                ClienteEstadoPiso.cliente_id.in_(cliente_ids),
+                ClienteEstadoPiso.compania_id == current_user.compania_id
+            ).all()
+            
+            # Crear un set de clientes que tienen al menos un match registrado
+            clientes_con_matches = set()
+            
+            # Contar clientes únicos por estado
+            clientes_con_pendiente = set()
+            clientes_con_cita = set()
+            clientes_con_descarta = set()
+            clientes_con_no_contesta = set()
+            
+            for estado_match in estados_matches:
+                clientes_con_matches.add(estado_match.cliente_id)
+                if estado_match.estado == "Pendiente":
+                    clientes_con_pendiente.add(estado_match.cliente_id)
+                elif estado_match.estado == "Cita Venta Puesta":
+                    clientes_con_cita.add(estado_match.cliente_id)
+                elif estado_match.estado == "Descarta":
+                    clientes_con_descarta.add(estado_match.cliente_id)
+                elif estado_match.estado == "No Contesta":
+                    clientes_con_no_contesta.add(estado_match.cliente_id)
+            
+            # CLAVE: Los clientes sin matches se consideran "Pendiente" por defecto
+            clientes_sin_matches = set(cliente_ids) - clientes_con_matches
+            clientes_con_pendiente.update(clientes_sin_matches)
+            
+            total_clientes = len(clientes_usuario)
+            
+            dashboard_data.append({
+                'asesor_email': usuario.email,
+                'asesor_nombre': usuario.email.split('@')[0],
+                'asesor_rol': usuario.rol,
+                'total_clientes': total_clientes,
+                'pendiente': len(clientes_con_pendiente),
+                'cita_venta_puesta': len(clientes_con_cita),
+                'descarta': len(clientes_con_descarta),
+                'no_contesta': len(clientes_con_no_contesta)
+            })
+        
+        # Ordenar por total de clientes pendientes (descendente)
+        dashboard_data.sort(key=lambda x: x['pendiente'], reverse=True)
+        
+        return {
+            'compania_id': current_user.compania_id,
+            'total_asesores': len(dashboard_data),
+            'fecha_consulta': datetime.now().isoformat(),
+            'asesores': dashboard_data
+        }
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error en supervisor dashboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error obteniendo datos del dashboard: {str(e)}")
