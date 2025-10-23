@@ -716,7 +716,7 @@ def get_supervisor_dashboard(db: Session = Depends(get_db), current_user=Depends
     """
     
     # Verificar que el usuario sea Supervisor
-    if current_user.role != "Supervisor":
+    if current_user.rol != "Supervisor":
         raise HTTPException(status_code=403, detail="Acceso denegado. Solo supervisores pueden acceder.")
     
     try:
@@ -746,7 +746,7 @@ def get_supervisor_dashboard(db: Session = Depends(get_db), current_user=Depends
             dashboard_data.append({
                 'asesor_email': usuario.email,
                 'asesor_nombre': usuario.email.split('@')[0],  # Usar parte del email como nombre
-                'asesor_rol': usuario.role,
+                'asesor_rol': usuario.rol,
                 'total_clientes': total_clientes,
                 'pendiente': estado_pendiente,
                 'cita_venta_puesta': estado_cita,
