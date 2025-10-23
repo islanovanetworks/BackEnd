@@ -758,17 +758,21 @@ def get_supervisor_dashboard(db: Session = Depends(get_db), current_user=Depends
             ).all()
             
             # Contar clientes únicos por estado
-            clientes_por_estado = {}
-            for estado in estados_matches:
-                if estado.cliente_id not in clientes_por_estado:
-                    clientes_por_estado[estado.cliente_id] = []
-                clientes_por_estado[estado.cliente_id].append(estado.estado)
+            # Un cliente puede tener múltiples matches, contar cuántos clientes tienen al menos un match en cada estado
+            clientes_con_pendiente = set()
+            clientes_con_cita = set()
+            clientes_con_descarta = set()
+            clientes_con_no_contesta = set()
             
-            # Contar estados (un cliente puede tener múltiples matches con diferentes estados)
-            estado_pendiente = sum(1 for estados in clientes_por_estado.values() if "Pendiente" in estados)
-            estado_cita = sum(1 for estados in clientes_por_estado.values() if "Cita Venta Puesta" in estados)
-            estado_descarta = sum(1 for estados in clientes_por_estado.values() if "Descarta" in estados)
-            estado_no_contesta = sum(1 for estados in clientes_por_estado.values() if "No Contesta" in estados)
+            for estado_match in estados_matches:
+                if estado_match.estado == "Pendiente":
+                    clientes_con_pendiente.add(estado_match.cliente_id)
+                elif estado_match.estado == "Cita Venta Puesta":
+                    clientes_con_cita.add(estado_match.cliente_id)
+                elif estado_match.estado == "Descarta":
+                    clientes_con_descarta.add(estado_match.cliente_id)
+                elif estado_match.estado == "No Contesta":
+                    clientes_con_no_contesta.add(estado_match.cliente_id)
             
             total_clientes = len(clientes_usuario)
             
@@ -777,10 +781,10 @@ def get_supervisor_dashboard(db: Session = Depends(get_db), current_user=Depends
                 'asesor_nombre': usuario.email.split('@')[0],
                 'asesor_rol': usuario.rol,
                 'total_clientes': total_clientes,
-                'pendiente': estado_pendiente,
-                'cita_venta_puesta': estado_cita,
-                'descarta': estado_descarta,
-                'no_contesta': estado_no_contesta
+                'pendiente': len(clientes_con_pendiente),
+                'cita_venta_puesta': len(clientes_con_cita),
+                'descarta': len(clientes_con_descarta),
+                'no_contesta': len(clientes_con_no_contesta)
             })
         
         # Ordenar por total de clientes pendientes (descendente)
