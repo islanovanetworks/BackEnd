@@ -173,9 +173,13 @@ def update_piso(
     db: Session = Depends(get_db), 
     current_user=Depends(get_current_user)
 ):
-    """Editar piso - Supervisores y Asesores pueden editar pisos"""
+    """Editar piso - Solo Supervisores pueden editar pisos"""
     
-    # Buscar el piso en la compañía del usuario
+    # Verificar que es Supervisor
+    if current_user.rol != "Supervisor":
+        raise HTTPException(status_code=403, detail="Solo supervisores pueden editar pisos")
+    
+    # Buscar el piso en la compañía del supervisor
     piso = db.query(Piso).filter(
         Piso.id == piso_id,
         Piso.compania_id == current_user.compania_id
@@ -189,40 +193,49 @@ def update_piso(
         raise HTTPException(status_code=403, detail="No autorizado para esta compañía")
     
     try:
-        # Actualizar campos del piso
-        piso.direccion = piso_data.direccion
-        piso.zona = piso_data.zona
-        piso.subzonas = piso_data.subzonas
-        piso.precio = piso_data.precio
-        piso.tipo_vivienda = piso_data.tipo_vivienda
-        piso.habitaciones = piso_data.habitaciones
-        piso.m2 = piso_data.m2
-        piso.planta = piso_data.planta
+        # Validaciones
+        if not piso_data.zona or len(piso_data.zona) == 0:
+            raise HTTPException(status_code=400, detail="Debe seleccionar al menos una zona")
+        
+        if not piso_data.precio or piso_data.precio <= 0:
+            raise HTTPException(status_code=400, detail="El precio debe ser mayor a 0")
+            
+        if not piso_data.m2 or piso_data.m2 <= 0:
+            raise HTTPException(status_code=400, detail="Los metros cuadrados deben ser mayor a 0")
+        
+        # Actualizar campos
+        piso.direccion = piso_data.direccion.strip() if piso_data.direccion else None
+        piso.zona = ",".join(piso_data.zona) if isinstance(piso_data.zona, list) else str(piso_data.zona)
+        piso.subzonas = piso_data.subzonas.strip() if piso_data.subzonas else None
+        piso.precio = float(piso_data.precio)
+        piso.tipo_vivienda = ",".join(piso_data.tipo_vivienda) if piso_data.tipo_vivienda else None
+        piso.habitaciones = ",".join(map(str, piso_data.habitaciones)) if piso_data.habitaciones else None
+        piso.estado = piso_data.estado
         piso.ascensor = piso_data.ascensor
-        piso.terraza = piso_data.terraza
-        piso.garaje = piso_data.garaje
-        piso.trastero = piso_data.trastero
-        piso.estado_conservacion = piso_data.estado_conservacion
-        piso.piscina = piso_data.piscina
-        piso.amueblado = piso_data.amueblado
-        piso.kiron = piso_data.kiron
-        piso.permuta = piso_data.permuta
-        piso.paralizado = piso_data.paralizado
+        piso.bajos = piso_data.bajos
+        piso.entreplanta = piso_data.entreplanta
+        piso.planta = piso_data.planta
+        piso.m2 = int(piso_data.m2)
+        piso.altura = piso_data.altura
+        piso.cercania_metro = piso_data.cercania_metro
+        piso.balcon_terraza = piso_data.balcon_terraza
+        piso.patio = piso_data.patio
+        piso.interior = piso_data.interior
+        piso.caracteristicas_adicionales = piso_data.caracteristicas_adicionales.strip() if piso_data.caracteristicas_adicionales else None
+        piso.paralizado = piso_data.paralizado or "NO"
         
         db.commit()
         db.refresh(piso)
-        
-        import logging
-        logging.info(f"Piso {piso_id} actualizado exitosamente por {current_user.rol} ({current_user.email})")
-        
         return piso
+        
+    except HTTPException:
+        db.rollback()
+        raise
     except ValueError as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error en los datos: {str(e)}")
     except Exception as e:
         db.rollback()
-        import logging
-        logging.error(f"Error updating piso: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
 @router.get("/all", response_model=list[PisoResponse])
