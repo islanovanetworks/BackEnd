@@ -118,21 +118,16 @@ def read_pisos(db: Session = Depends(get_db), current_user=Depends(get_current_u
 
 @router.delete("/{piso_id}")
 def delete_piso(piso_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    """Eliminar piso - Solo Supervisores pueden eliminar pisos"""
+    """Eliminar piso - Supervisores y Asesores pueden eliminar pisos"""
     
     try:
         import logging
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         
-        logger.info(f"Iniciando eliminación de piso {piso_id} por usuario {current_user.email}")
+        logger.info(f"Iniciando eliminación de piso {piso_id} por usuario {current_user.email} (Rol: {current_user.rol})")
         
-        # Verificar que es Supervisor
-        if current_user.rol != "Supervisor":
-            logger.error(f"Usuario {current_user.email} no es supervisor")
-            raise HTTPException(status_code=403, detail="Solo supervisores pueden eliminar pisos")
-        
-        # Buscar el piso en la compañía del supervisor
+        # Buscar el piso en la compañía del usuario
         piso = db.query(Piso).filter(
             Piso.id == piso_id,
             Piso.compania_id == current_user.compania_id
@@ -160,7 +155,7 @@ def delete_piso(piso_id: int, db: Session = Depends(get_db), current_user=Depend
         db.delete(piso)
         db.commit()
         
-        logger.info(f"Piso {piso_direccion} eliminado exitosamente")
+        logger.info(f"Piso {piso_direccion} eliminado exitosamente por {current_user.rol}")
         return {"message": f"Piso {piso_direccion} eliminado exitosamente"}
         
     except HTTPException:
@@ -178,13 +173,9 @@ def update_piso(
     db: Session = Depends(get_db), 
     current_user=Depends(get_current_user)
 ):
-    """Editar piso - Solo Supervisores pueden editar pisos"""
+    """Editar piso - Supervisores y Asesores pueden editar pisos"""
     
-    # Verificar que es Supervisor
-    if current_user.rol != "Supervisor":
-        raise HTTPException(status_code=403, detail="Solo supervisores pueden editar pisos")
-    
-    # Buscar el piso en la compañía del supervisor
+    # Buscar el piso en la compañía del usuario
     piso = db.query(Piso).filter(
         Piso.id == piso_id,
         Piso.compania_id == current_user.compania_id
@@ -198,45 +189,33 @@ def update_piso(
         raise HTTPException(status_code=403, detail="No autorizado para esta compañía")
     
     try:
-        # Validaciones
-        if not piso_data.zona or len(piso_data.zona) == 0:
-            raise HTTPException(status_code=400, detail="Debe seleccionar al menos una zona")
-        
-        if not piso_data.precio or piso_data.precio <= 0:
-            raise HTTPException(status_code=400, detail="El precio debe ser mayor a 0")
-            
-        if not piso_data.m2 or piso_data.m2 <= 0:
-            raise HTTPException(status_code=400, detail="Los metros cuadrados deben ser mayor a 0")
-        
-        # Actualizar campos
-        # Actualizar campos
-        piso.direccion = piso_data.direccion.strip() if piso_data.direccion else None
-        piso.zona = ",".join(piso_data.zona) if isinstance(piso_data.zona, list) else str(piso_data.zona)
-        piso.subzonas = piso_data.subzonas.strip() if piso_data.subzonas else None
-        piso.precio = float(piso_data.precio)
-        piso.tipo_vivienda = ",".join(piso_data.tipo_vivienda) if piso_data.tipo_vivienda else None
-        piso.habitaciones = ",".join(map(str, piso_data.habitaciones)) if piso_data.habitaciones else None
-        piso.estado = piso_data.estado
-        piso.ascensor = piso_data.ascensor
-        piso.bajos = piso_data.bajos
-        piso.entreplanta = piso_data.entreplanta
+        # Actualizar campos del piso
+        piso.direccion = piso_data.direccion
+        piso.zona = piso_data.zona
+        piso.subzonas = piso_data.subzonas
+        piso.precio = piso_data.precio
+        piso.tipo_vivienda = piso_data.tipo_vivienda
+        piso.habitaciones = piso_data.habitaciones
+        piso.m2 = piso_data.m2
         piso.planta = piso_data.planta
-        piso.m2 = int(piso_data.m2)
-        piso.altura = piso_data.altura
-        piso.cercania_metro = piso_data.cercania_metro
-        piso.balcon_terraza = piso_data.balcon_terraza
-        piso.patio = piso_data.patio
-        piso.interior = piso_data.interior
-        piso.caracteristicas_adicionales = piso_data.caracteristicas_adicionales.strip() if piso_data.caracteristicas_adicionales else None
-        piso.paralizado = piso_data.paralizado or "NO"  # NUEVO: Campo para paralizar pisos
+        piso.ascensor = piso_data.ascensor
+        piso.terraza = piso_data.terraza
+        piso.garaje = piso_data.garaje
+        piso.trastero = piso_data.trastero
+        piso.estado_conservacion = piso_data.estado_conservacion
+        piso.piscina = piso_data.piscina
+        piso.amueblado = piso_data.amueblado
+        piso.kiron = piso_data.kiron
+        piso.permuta = piso_data.permuta
+        piso.paralizado = piso_data.paralizado
         
         db.commit()
         db.refresh(piso)
-        return piso
         
-    except HTTPException:
-        db.rollback()
-        raise
+        import logging
+        logging.info(f"Piso {piso_id} actualizado exitosamente por {current_user.rol} ({current_user.email})")
+        
+        return piso
     except ValueError as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error en los datos: {str(e)}")
@@ -248,9 +227,7 @@ def update_piso(
 
 @router.get("/all", response_model=list[PisoResponse])
 def read_all_pisos(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    """Obtener todos los pisos para gestión - Solo Supervisores"""
-    if current_user.rol != "Supervisor":
-        raise HTTPException(status_code=403, detail="Solo supervisores pueden ver todos los pisos")
+    """Obtener todos los pisos para gestión - Supervisores y Asesores"""
     
     pisos = db.query(Piso).filter(Piso.compania_id == current_user.compania_id).all()
     return pisos
@@ -261,13 +238,9 @@ def toggle_piso_paralizado(
     db: Session = Depends(get_db), 
     current_user=Depends(get_current_user)
 ):
-    """Cambiar estado de paralización de un piso - Solo Supervisores"""
+    """Cambiar estado de paralización de un piso - Supervisores y Asesores"""
     
-    # Verificar que es Supervisor
-    if current_user.rol != "Supervisor":
-        raise HTTPException(status_code=403, detail="Solo supervisores pueden paralizar pisos")
-    
-    # Buscar el piso en la compañía del supervisor
+    # Buscar el piso en la compañía del usuario
     piso = db.query(Piso).filter(
         Piso.id == piso_id,
         Piso.compania_id == current_user.compania_id
@@ -284,7 +257,7 @@ def toggle_piso_paralizado(
         db.refresh(piso)
         
         action = "paralizado" if piso.paralizado == "SÍ" else "reactivado"
-        print(f"Piso {piso.id} {action} por supervisor {current_user.email}")
+        print(f"Piso {piso.id} {action} por {current_user.rol} ({current_user.email})")
         
         return piso
         
