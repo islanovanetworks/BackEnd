@@ -39,6 +39,12 @@ def check_trial_status(compania_id: int, db: Session = Depends(get_db)):
             "fecha_caducidad": "2025-10-20",
             "dias_restantes": 0
         }
+    if compania_id == 3:
+        return {
+            "trial_active": False,
+            "fecha_caducidad": "2025-11-30",
+            "dias_restantes": 0
+        }
     
     # Si no tiene fecha de caducidad, está activa
     if not compania.fecha_caducidad_trial:
